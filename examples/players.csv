@@ -1,0 +1,9 @@
+name,handedness,serve_accuracy,return_accuracy,aces_per_match,double_faults_per_match,recent_win_ratio,straight_sets_win_ratio,win_vs_right,win_vs_left,injury_impact
+Alex Rivera,right,0.78,0.64,10.2,2.1,0.82,0.68,0.76,0.71,0.04
+Blake Morgan,left,0.72,0.70,7.4,2.8,0.76,0.61,0.72,0.74,0.07
+Casey Chen,right,0.69,0.76,4.1,1.9,0.79,0.66,0.75,0.70,0.03
+Drew Patel,right,0.81,0.58,12.8,3.7,0.71,0.57,0.69,0.67,0.10
+Emery Okafor,left,0.74,0.73,6.5,2.2,0.80,0.64,0.78,0.72,0.05
+Finley Novak,right,0.76,0.66,9.1,2.5,0.74,0.60,0.71,0.69,0.06
+Gray Williams,right,0.67,0.79,3.2,1.6,0.77,0.63,0.74,0.73,0.02
+Harper Silva,left,0.79,0.62,11.6,3.1,0.73,0.59,0.70,0.68,0.08
