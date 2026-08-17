@@ -1,0 +1,51 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tennis-bracket-predictor"
+version = "0.2.0"
+description = "Reproducible Monte Carlo simulations for single-elimination tennis brackets"
+readme = "README.md"
+requires-python = ">=3.9"
+authors = [{ name = "Chinmay Amancha" }]
+keywords = ["monte-carlo", "prediction", "simulation", "tennis"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "Intended Audience :: Education",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+]
+
+[project.urls]
+Homepage = "https://github.com/chessamancha-oss/Tennis-Bracket-Predictor"
+Issues = "https://github.com/chessamancha-oss/Tennis-Bracket-Predictor/issues"
+
+[project.optional-dependencies]
+charts = ["matplotlib>=3.8,<4"]
+dev = ["coverage[toml]>=7.6,<8", "ruff>=0.9,<1"]
+
+[project.scripts]
+tennis-predictor = "tennis_predictor.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["tennis_predictor*"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py39"
+
+[tool.ruff.lint]
+select = ["B", "E", "F", "I"]
+
+[tool.coverage.run]
+branch = true
+source = ["tennis_predictor"]
+
+[tool.coverage.report]
+show_missing = true
