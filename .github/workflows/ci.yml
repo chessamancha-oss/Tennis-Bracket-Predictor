@@ -9,7 +9,7 @@ permissions:
   contents: read
 
 jobs:
-  test:
+  python:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -38,3 +38,29 @@ jobs:
         run: >-
           tennis-predictor --players examples/players.csv --simulations 200
           --seed 42 --output results/forecast.csv
+
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.19.0
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Type-check and lint
+        run: |
+          pnpm exec tsc --noEmit
+          pnpm lint
+      - name: Test the probabilistic engine
+        run: pnpm test:model
+      - name: Build and test rendered output
+        run: |
+          pnpm build
+          node --test tests/rendered-html.test.mjs
