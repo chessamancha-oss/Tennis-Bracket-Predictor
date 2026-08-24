@@ -10,5 +10,8 @@ Historical match aggregates are derived from the public tennis datasets compiled
 - Archival mirror: https://github.com/Aneeshers/tennis-sackmann-archive
 - History cutoff in this build: 2026-05-25
 - Ranking snapshot in this build: 2026-08-18
+- Derived historical catalogue: 7,255 ATP/WTA profiles spanning 1967–2026
 
-The model and interface are not affiliated with or endorsed by the ATP, WTA, players, tournaments, or data contributors.
+The live tournament interface separately reads short-lived scoreboard data from ESPN. That response is not redistributed in the committed player dataset and is refreshed on demand. The interface links to official tournament sources for verification.
+
+The model and interface are not affiliated with or endorsed by the ATP, WTA, ESPN, players, tournaments, or data contributors.

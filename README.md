@@ -1,38 +1,54 @@
 # Baseline Labs — Tennis Predictor
 
-Baseline Labs is a professional, browser-based tennis forecasting studio. It combines versioned ATP/WTA profiles, surface-aware latent ability, Bayesian serve and return estimates, and point-by-point Monte Carlo scoring in an interface designed to explain both the prediction and its uncertainty.
+Baseline Labs is a professional tennis forecasting workspace. It combines a 7,255-player historical catalogue, surface-aware latent ability, Bayesian serve and return estimates, point-by-point Monte Carlo scoring, custom tournament simulation, and a self-refreshing live tour desk.
 
-The repository also retains a tested Python bracket CLI for reproducible batch experiments. The web product is the primary v2 experience.
+The repository also retains a tested Python bracket CLI for reproducible batch experiments. The web product is the primary v3 experience.
 
 > Research status: the architecture is probabilistic and the data pipeline is reproducible, but the model has not yet completed the rolling-origin calibration study described in the [model card](MODEL_CARD.md). It is not betting advice.
 
 ## Product experience
 
-### Professional matchup
+### 1v1 lab
 
-- Choose from 16 current ATP or 16 current WTA players.
-- Compare official rank and points, 52-week form, serve-point rate, surface rating, and surface sample depth.
+- Search 3,513 ATP and 3,742 WTA players across 1967–2026.
+- Compare current priors for active players or career-peak priors for retired players.
+- Filter by tour and era, with name, country, career span, rating, and major-title context.
 - Select hard, clay, or grass and best-of-three or best-of-five scoring.
 - Run 5,040 complete match simulations across 36 posterior skill draws.
 - Review win probability, an 80% model-uncertainty interval, likely set score, expected sets and games, tiebreak likelihood, and separate evidence layers.
 
-### Custom matchup
+### Unrestricted custom profiles
 
-- Build two named player profiles using eight guided 1–10 inputs.
-- Read concrete low/mid/high examples before choosing a number.
-- Get a dynamic scouting interpretation after every selection—for example, what a 10/10 serve implies in tennis terms and where it changes the simulation.
-- Feed the profiles through the same point/game/set engine, with wider uncertainty for subjective inputs.
+- Enter raw overall and surface ratings, rating uncertainty, serve/return rates, recent form, evidence volume, and signed pressure/endurance indices.
+- Use decimals or percentages without a fixed 1–10 scale or UI ceiling.
+- Read a dynamic interpretation for every entered value.
+- Keep extreme inputs numerically stable through bounded probabilistic transforms rather than silently rejecting them.
+
+### Bracket lab
+
+- Add professionals from the historical catalogue, add custom entrants, or paste an entire roster.
+- Use any field size; non-power-of-two draws receive automatic byes.
+- Choose tournament category, surface, and best-of-three or best-of-five scoring.
+- Inspect every projected matchup with win percentages, likely set scores, advancing players, and champion path.
+
+### Live tour desk
+
+- Reads the ATP and WTA tournaments active on the current date.
+- Shows completed scores, in-progress match state, unresolved draw slots, and forecasts for known future matchups.
+- Refreshes every 60 seconds so completed results lock into the bracket and newly resolved matchups receive new forecasts.
+- Currently uses the ESPN tennis scoreboard as the operational live-result layer; official tournament links remain available for verification.
 
 ## Model overview
 
-This is not a weighted checklist. The v2 browser model is generative:
+This is not a weighted checklist. The v3 browser model is generative:
 
 1. match history updates overall and surface-specific paired-comparison ratings;
 2. sparse surface histories are partially pooled toward overall ability;
 3. serve and return point skills are drawn from beta posteriors;
 4. latent ability is drawn from uncertainty-aware normal posteriors;
-5. custom pressure and fitness inputs act only in the match states they describe; and
-6. the simulator plays points into advantage games, tiebreaks, sets, and full matches.
+5. open-ended pressure and fitness inputs act only in the match states they describe;
+6. the simulator plays points into advantage games, tiebreaks, sets, and full matches; and
+7. bracket forecasts repeat the same engine through a complete single-elimination path, preserving byes.
 
 See [MODEL_CARD.md](MODEL_CARD.md) for assumptions, intended use, limitations, and the evaluation roadmap.
 
@@ -42,7 +58,7 @@ Node.js 22.13+ and pnpm 11 are required.
 
 ```bash
 cd web
-pnpm install --frozen-lockfile
+pnpm install --frozen-lockfile --ignore-scripts
 pnpm dev
 ```
 
@@ -68,7 +84,14 @@ python scripts/update_player_profiles.py \
   --output web/data/players.generated.ts
 ```
 
-Before publishing a refresh, update and independently verify the official-ranking constants in the script, update both displayed cutoff dates, run the full test suite, and review the generated diff. Historical and derived player data is CC BY-NC-SA 4.0; see [web/data/NOTICE.md](web/data/NOTICE.md).
+To rebuild the complete historical D1 catalogue and its migration:
+
+```bash
+python scripts/build_player_database.py \
+  --archive ../tennis-sackmann-archive
+```
+
+Before publishing a refresh, independently verify current-ranking constants, update displayed cutoff dates, inspect the generated SQL and summary, run the full test suite, and review the generated diff. Historical and derived player data is CC BY-NC-SA 4.0; see [web/data/NOTICE.md](web/data/NOTICE.md).
 
 ## Python bracket CLI
 
@@ -91,9 +114,11 @@ The CLI input schema and API are documented through `tennis-predictor --help` an
 ## Repository map
 
 ```text
-web/                         Interactive forecasting studio and v2 model
+web/                         Interactive forecasting studio, D1 schema, and v3 model
 scripts/update_player_profiles.py
                              Reproducible professional-profile generator
+scripts/build_player_database.py
+                             Historical catalogue and D1 seed generator
 tennis_predictor/            Python bracket experimentation package
 tests/                       Python unit and integration tests
 .github/workflows/ci.yml     Python matrix + web type/lint/model/build checks
