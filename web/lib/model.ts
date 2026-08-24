@@ -57,6 +57,18 @@ export interface PredictionResult {
   evidence: EvidenceItem[];
 }
 
+export interface AdvancedProfileInputs {
+  rating: number;
+  surfaceRating: number;
+  ratingUncertainty: number;
+  servePointsWon: number;
+  returnPointsWon: number;
+  formRate: number;
+  sampleMatches: number;
+  clutchIndex: number;
+  fitnessIndex: number;
+}
+
 interface DrawnSkills {
   serveOne: number;
   serveTwo: number;
@@ -242,9 +254,9 @@ function evidence(one: PlayerProfile, two: PlayerProfile, surface: Surface): Evi
   ];
 }
 
-export function predictMatch(one: PlayerProfile, two: PlayerProfile, surface: Surface, bestOf: 3 | 5, requestedSimulations = 5040): PredictionResult {
-  const posteriorDraws = 36;
-  const simulationsPerDraw = Math.max(60, Math.round(requestedSimulations / posteriorDraws));
+export function predictMatch(one: PlayerProfile, two: PlayerProfile, surface: Surface, bestOf: 3 | 5, requestedSimulations = 5040, requestedPosteriorDraws = 36): PredictionResult {
+  const posteriorDraws = Math.max(6, Math.round(requestedPosteriorDraws));
+  const simulationsPerDraw = Math.max(10, Math.round(requestedSimulations / posteriorDraws));
   const simulations = posteriorDraws * simulationsPerDraw;
   const rng = makeRandom(seedFrom(`${one.id}|${two.id}|${surface}|${bestOf}|v2`));
   const drawProbabilities: number[] = [];
@@ -298,6 +310,68 @@ export function predictMatch(one: PlayerProfile, two: PlayerProfile, surface: Su
     posteriorDraws,
     confidence,
     evidence: evidence(one, two, surface),
+  };
+}
+
+function probabilityInput(value: number, fallback: number) {
+  if (!Number.isFinite(value)) return fallback;
+  return clamp(Math.abs(value) > 1 ? value / 100 : value, 0.01, 0.99);
+}
+
+function openIndex(value: number) {
+  if (!Number.isFinite(value)) return 5.5;
+  return 5.5 + 4.5 * Math.tanh(value / 3.5);
+}
+
+export function advancedProfile(id: string, name: string, inputs: AdvancedProfileInputs, surface: Surface): PlayerProfile {
+  const rating = Number.isFinite(inputs.rating) ? inputs.rating : 1500;
+  const selectedSurfaceRating = Number.isFinite(inputs.surfaceRating) ? inputs.surfaceRating : rating;
+  const sample = Math.max(0, Number.isFinite(inputs.sampleMatches) ? inputs.sampleMatches : 0);
+  const form = probabilityInput(inputs.formRate, 0.5);
+  const serve = probabilityInput(inputs.servePointsWon, 0.61);
+  const returns = probabilityInput(inputs.returnPointsWon, 0.39);
+  const uncertainty = clamp(Math.abs(Number.isFinite(inputs.ratingUncertainty) ? inputs.ratingUncertainty : 140), 18, 420);
+  const custom = {
+    serve: 5.5,
+    return: 5.5,
+    movement: 5.5,
+    clutch: openIndex(inputs.clutchIndex),
+    form: 5.5,
+    fitness: openIndex(inputs.fitnessIndex),
+    surface: 5.5,
+    experience: clamp(1 + Math.log10(sample + 1) * 3.2, 1, 10),
+  };
+  return {
+    id,
+    tour: "CUSTOM",
+    name: name.trim() || (id.endsWith("one") ? "Player A" : "Player B"),
+    rank: null,
+    rankingPoints: null,
+    country: "Custom model",
+    hand: "Unspecified",
+    age: null,
+    rating,
+    surfaceRating: {
+      hard: surface === "hard" ? selectedSurfaceRating : rating,
+      clay: surface === "clay" ? selectedSurfaceRating : rating,
+      grass: surface === "grass" ? selectedSurfaceRating : rating,
+    },
+    ratingSigma: uncertainty,
+    matches52w: Math.round(sample),
+    wins52w: Math.round(sample * form),
+    form90d: form,
+    servePointsWon: serve,
+    returnPointsWon: returns,
+    holdRate: clamp(0.5 + (serve - 0.54) * 2.25, 0.35, 0.98),
+    aceRate: null,
+    doubleFaultRate: null,
+    serveSample: Math.round(sample * 120),
+    returnSample: Math.round(sample * 120),
+    surfaceSamples: { hard: Math.round(sample / 2), clay: Math.round(sample / 3), grass: Math.round(sample / 6) },
+    lastMatchDate: null,
+    rankingSnapshot: null,
+    historyCutoff: null,
+    custom,
   };
 }
 
