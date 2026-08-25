@@ -67,6 +67,15 @@ Every applied factor, source headline, confidence label, and rating/uncertainty 
 
 Rankings are deliberately newer than the match-history snapshot. The interface discloses both dates rather than implying live point statistics.
 
+### Refresh policy
+
+- Live draw state is requested by the client every 60 seconds.
+- Match-context sources are queried when a context forecast runs and are cached only briefly; they are not silently written into the static player catalogue.
+- Production feed health and source timestamps are checked hourly.
+- Static professional rankings, player aggregates, aliases, and model inputs are reviewed once per America/New_York calendar day and regenerated only from a newer verified source snapshot.
+- Dependencies and published security advisories are reviewed weekly.
+- Automated maintenance never treats a changing timestamp as a data improvement. Material updates must pass the repository's complete test and production-build gate before deployment.
+
 ## Known limitations
 
 - Injury and coaching intelligence is headline-level reporting, not access to medical records, private team information, or confirmed training data.
