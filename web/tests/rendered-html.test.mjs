@@ -18,12 +18,13 @@ test("server-renders the complete forecasting product shell", async () => {
   assert.equal(response.status, 200);
   assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
   const html = await response.text();
-  assert.match(html, /<title>Baseline Labs — Tennis Match &amp; Bracket Forecasts<\/title>/i);
-  assert.match(html, /Forecast the point/);
+  assert.match(html, /<title>Baseline Labs — Serious Tennis Forecasting<\/title>/i);
+  assert.match(html, /Every match has a hidden shape/);
   assert.match(html, /Professional library/);
   assert.match(html, /Unrestricted profile/);
-  assert.match(html, /Bracket Lab/);
-  assert.match(html, /Live Tour/);
+  assert.match(html, /Tournament builder/);
+  assert.match(html, /Live tour desk/);
+  assert.match(html, /og-baseline-labs-v2\.png/);
   assert.match(html, /LIVE CONTEXT INTELLIGENCE/);
   assert.match(html, /injury reporting/);
   assert.match(html, /Serious mechanics/);

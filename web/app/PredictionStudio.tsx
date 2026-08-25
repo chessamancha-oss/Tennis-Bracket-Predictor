@@ -78,32 +78,54 @@ export function PredictionStudio() {
     <header className="site-nav" id="top">
       <a className="brand" href="#top" aria-label="Baseline Labs home"><span className="brand-dot" /><span>BASELINE</span><b>LABS</b></a>
       <nav aria-label="Product navigation">
-        <button className={view === "match" ? "active" : ""} onClick={() => setView("match")}>1v1 Lab</button>
-        <button className={view === "bracket" ? "active" : ""} onClick={() => setView("bracket")}>Bracket Lab</button>
-        <button className={view === "live" ? "active" : ""} onClick={() => setView("live")}><i /> Live Tour</button>
+        <button className={view === "match" ? "active" : ""} onClick={() => setView("match")}>Matchup</button>
+        <button className={view === "bracket" ? "active" : ""} onClick={() => setView("bracket")}>Bracket builder</button>
+        <button className={view === "live" ? "active" : ""} onClick={() => setView("live")}><i /> Live draws</button>
       </nav>
       <a className="method-link" href="#method">Model notes</a>
     </header>
 
     <section className="hero-clean">
-      <div className="hero-kicker"><span>Probabilistic tennis intelligence</span><i /> Model v3.1</div>
-      <div className="hero-grid">
-        <h1>Forecast the point.<br />Then the path.</h1>
-        <div><p>Compare any era, model real match context, simulate a full tournament, or follow a live draw as weather and availability signals change.</p><button onClick={() => { setView("match"); document.getElementById("workspace")?.scrollIntoView({ behavior: "smooth" }); }}>Start forecasting <span>↘</span></button></div>
+      <div className="hero-atmosphere" aria-hidden="true" />
+      <div className="hero-shell">
+        <div className="hero-copy">
+          <div className="hero-kicker"><span>BASELINE INTELLIGENCE</span><i /> Model v3.1</div>
+          <h1>Every match has a hidden shape.</h1>
+          <p>See it before the first serve. Compare any era, add current conditions and availability, then simulate one matchup or an entire draw.</p>
+          <div className="hero-actions">
+            <button onClick={() => { setView("match"); document.getElementById("workspace")?.scrollIntoView({ behavior: "smooth" }); }}>Open match lab <span>↗</span></button>
+            <button className="secondary" onClick={() => { setView("live"); document.getElementById("workspace")?.scrollIntoView({ behavior: "smooth" }); }}>Explore live draws</button>
+          </div>
+          <div className="hero-proof"><span><b>Bayesian</b> uncertainty</span><span><b>Point-level</b> scoring</span><span><b>Source-linked</b> context</span></div>
+        </div>
+        <div className="hero-model-card" role="img" aria-label="Illustrative model preview showing a 64 to 36 percent tennis forecast">
+          <header><span><i /> MODEL PREVIEW</span><b>HARD · BEST OF 3</b></header>
+          <div className="hero-matchup">
+            <div><small>PLAYER ONE</small><strong>64%</strong><span>Projected edge</span></div>
+            <div className="hero-sim"><b>5,040</b><small>score-level<br />simulations</small></div>
+            <div><small>PLAYER TWO</small><strong>36%</strong><span>Live posterior</span></div>
+          </div>
+          <div className="hero-signal-list">
+            <div><span>01</span><strong>Surface fit</strong><i><b style={{ width: "78%" }} /></i><em>+8.2</em></div>
+            <div><span>02</span><strong>Recent form</strong><i><b style={{ width: "61%" }} /></i><em>+3.1</em></div>
+            <div><span>03</span><strong>Match context</strong><i><b style={{ width: "44%" }} /></i><em>live</em></div>
+          </div>
+          <footer><span>Weather</span><b>72°F · 5 mph</b><span>Availability</span><b>Checked</b></footer>
+        </div>
       </div>
       <div className="signal-strip">
-        <div><strong>{playerDatabaseSummary.count.toLocaleString()}</strong><span>searchable ATP + WTA profiles</span></div>
-        <div><strong>{playerDatabaseSummary.firstYear}—{playerDatabaseSummary.lastYear}</strong><span>historical coverage</span></div>
-        <div><strong>5,040</strong><span>score-level simulations per 1v1</span></div>
-        <div><strong>60 sec</strong><span>live bracket refresh</span></div>
+        <div><span>Player catalogue</span><strong>{playerDatabaseSummary.count.toLocaleString()}</strong><small>ATP + WTA profiles</small></div>
+        <div><span>Historical range</span><strong>{playerDatabaseSummary.firstYear}—{playerDatabaseSummary.lastYear}</strong><small>cross-era comparison</small></div>
+        <div><span>Simulation depth</span><strong>5,040</strong><small>score paths per matchup</small></div>
+        <div><span>Live cadence</span><strong>60 sec</strong><small>draw refresh</small></div>
       </div>
     </section>
 
     <section className="product-shell" id="workspace">
       <div className="workspace-tabs" role="tablist" aria-label="Forecast workspace">
-        <button role="tab" aria-selected={view === "match"} className={view === "match" ? "active" : ""} onClick={() => setView("match")}><span>01</span><strong>1v1 Lab</strong><small>Any player, any era</small></button>
-        <button role="tab" aria-selected={view === "bracket"} className={view === "bracket" ? "active" : ""} onClick={() => setView("bracket")}><span>02</span><strong>Bracket Lab</strong><small>Unlimited custom fields</small></button>
-        <button role="tab" aria-selected={view === "live"} className={view === "live" ? "active" : ""} onClick={() => setView("live")}><span>03</span><strong>Live Tour</strong><small>Draw-aware forecasts</small></button>
+        <button role="tab" aria-selected={view === "match"} className={view === "match" ? "active" : ""} onClick={() => setView("match")}><span>01</span><strong>Matchup forecast</strong><small>Any player, any era</small></button>
+        <button role="tab" aria-selected={view === "bracket"} className={view === "bracket" ? "active" : ""} onClick={() => setView("bracket")}><span>02</span><strong>Tournament builder</strong><small>Unlimited custom fields</small></button>
+        <button role="tab" aria-selected={view === "live"} className={view === "live" ? "active" : ""} onClick={() => setView("live")}><span>03</span><strong>Live tour desk</strong><small>Draw-aware forecasts</small></button>
       </div>
       {view === "match" ? <MatchLab /> : view === "bracket" ? <BracketLab /> : <LiveTourDesk />}
     </section>
@@ -112,7 +134,7 @@ export function PredictionStudio() {
     <footer>
       <a className="brand footer-brand" href="#top"><span className="brand-dot" /><span>BASELINE</span><b>LABS</b></a>
       <p>Transparent research software. Forecasts express model uncertainty and are not betting advice. News signals are not medical confirmation. No affiliation with data sources or tournament operators.</p>
-      <div><a href="https://open-meteo.com/en/docs" target="_blank" rel="noreferrer">Conditions source ↗</a><a href="https://github.com/Aneeshers/tennis-sackmann-archive" target="_blank" rel="noreferrer">Player archive ↗</a></div>
+      <div><a href="https://www.weather.gov/documentation/services-web-api" target="_blank" rel="noreferrer">US conditions ↗</a><a href="https://open-meteo.com/en/docs" target="_blank" rel="noreferrer">Global conditions ↗</a><a href="https://github.com/Aneeshers/tennis-sackmann-archive" target="_blank" rel="noreferrer">Player archive ↗</a></div>
     </footer>
   </main>;
 }
