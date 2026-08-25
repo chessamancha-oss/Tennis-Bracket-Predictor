@@ -479,10 +479,12 @@ async function relevantNews(players: PlayerProfile[], eventName: string) {
     return parseNewsRss(await getText(`https://news.google.com/rss/search?${params}`));
   };
   try {
-    const [statusArticles, coachingArticles] = await Promise.all([
+    const [statusResult, coachingResult] = await Promise.allSettled([
       search(`(${names}) tennis (injury OR injured OR illness OR withdrawal OR withdrew OR medical OR fitness) when:14d`),
       search(`(${names}) tennis (coach OR coaching) (split OR change OR hire OR appoint OR "part ways") when:45d`),
     ]);
+    const statusArticles = statusResult.status === "fulfilled" ? statusResult.value : [];
+    const coachingArticles = coachingResult.status === "fulfilled" ? coachingResult.value : [];
     const statusSignals = statusArticles.map((article) => classifyArticle(article, players, eventName)).filter((signal): signal is NewsSignal => signal !== null);
     const coachingSignals = coachingArticles.map((article) => classifyArticle(article, players, eventName)).filter((signal): signal is NewsSignal => signal?.kind === "coaching");
     const reliableCoachingSignals = coachingSignals.filter((signal) => signal.confidence === "verified" || new Set(coachingSignals.filter((item) => normalizePlayerName(item.player) === normalizePlayerName(signal.player)).map((item) => item.source)).size >= 2);
