@@ -95,6 +95,27 @@ const trustedNewsDomains = [
   "tennis.com",
 ];
 
+const knownVenueLocations: Record<string, GeocodingResult> = {
+  "new york": { name: "New York", country: "United States", latitude: 40.7128, longitude: -74.006, timezone: "America/New_York" },
+  "winston salem": { name: "Winston-Salem", country: "United States", latitude: 36.0999, longitude: -80.2442, timezone: "America/New_York" },
+  philadelphia: { name: "Philadelphia", country: "United States", latitude: 39.9526, longitude: -75.1652, timezone: "America/New_York" },
+  cincinnati: { name: "Cincinnati", country: "United States", latitude: 39.1031, longitude: -84.512, timezone: "America/New_York" },
+  monterrey: { name: "Monterrey", country: "Mexico", latitude: 25.6866, longitude: -100.3161, timezone: "America/Monterrey" },
+  montreal: { name: "Montreal", country: "Canada", latitude: 45.5017, longitude: -73.5673, timezone: "America/Toronto" },
+  toronto: { name: "Toronto", country: "Canada", latitude: 43.6532, longitude: -79.3832, timezone: "America/Toronto" },
+  "indian wells": { name: "Indian Wells", country: "United States", latitude: 33.7176, longitude: -116.3408, timezone: "America/Los_Angeles" },
+  miami: { name: "Miami", country: "United States", latitude: 25.7617, longitude: -80.1918, timezone: "America/New_York" },
+  madrid: { name: "Madrid", country: "Spain", latitude: 40.4168, longitude: -3.7038, timezone: "Europe/Madrid" },
+  rome: { name: "Rome", country: "Italy", latitude: 41.9028, longitude: 12.4964, timezone: "Europe/Rome" },
+  paris: { name: "Paris", country: "France", latitude: 48.8566, longitude: 2.3522, timezone: "Europe/Paris" },
+  london: { name: "London", country: "United Kingdom", latitude: 51.5074, longitude: -0.1278, timezone: "Europe/London" },
+  melbourne: { name: "Melbourne", country: "Australia", latitude: -37.8136, longitude: 144.9631, timezone: "Australia/Melbourne" },
+};
+
+function venueKey(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+}
+
 function isoDay(date: Date) {
   return date.toISOString().slice(0, 10).replaceAll("-", "");
 }
@@ -123,6 +144,10 @@ async function getText(url: string) {
 
 async function geocode(location: string) {
   const candidates = [location, location.split(",")[0]].map((item) => item.trim()).filter(Boolean);
+  for (const candidate of candidates) {
+    const known = knownVenueLocations[venueKey(candidate)];
+    if (known) return known;
+  }
   for (const candidate of candidates) {
     const params = new URLSearchParams({ name: candidate, count: "1", language: "en", format: "json" });
     try {
@@ -156,40 +181,47 @@ function weatherPoint(payload: ForecastPayload, startsAt?: string | null) {
 export async function conditionsAtVenue(venue: string, startsAt?: string | null): Promise<VenueConditions | null> {
   const location = await geocode(venue);
   if (location?.latitude === undefined || location.longitude === undefined) return null;
-  const params = new URLSearchParams({
+  const shared = {
     latitude: String(location.latitude),
     longitude: String(location.longitude),
     current: "temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m,wind_gusts_10m",
-    hourly: "temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m,wind_gusts_10m",
     temperature_unit: "fahrenheit",
     wind_speed_unit: "mph",
     precipitation_unit: "inch",
+    timezone: "auto",
+  };
+  const detailed = new URLSearchParams({
+    ...shared,
+    hourly: "temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m,wind_gusts_10m",
     forecast_days: "16",
     past_days: "1",
-    timezone: "auto",
   });
-  try {
-    const payload = await getJson<ForecastPayload>(`https://api.open-meteo.com/v1/forecast?${params}`);
-    const point = weatherPoint(payload, startsAt);
-    return {
-      location: [location.name, location.country].filter(Boolean).join(", ") || venue,
-      latitude: location.latitude,
-      longitude: location.longitude,
-      elevationM: Number(payload.elevation ?? location.elevation ?? 0),
-      timezone: payload.timezone ?? location.timezone ?? "UTC",
-      observedAt: point.observedAt,
-      temperatureF: numericAt(point.source.temperature_2m, point.index),
-      apparentTemperatureF: numericAt(point.source.apparent_temperature, point.index),
-      humidityPercent: numericAt(point.source.relative_humidity_2m, point.index),
-      precipitationIn: numericAt(point.source.precipitation, point.index),
-      windMph: numericAt(point.source.wind_speed_10m, point.index),
-      gustMph: numericAt(point.source.wind_gusts_10m, point.index),
-      weatherCode: numericAt(point.source.weather_code, point.index),
-      sourceUrl: "https://open-meteo.com/en/docs",
-    };
-  } catch {
-    return null;
+  const currentOnly = new URLSearchParams(shared);
+  for (const params of [detailed, currentOnly]) {
+    try {
+      const payload = await getJson<ForecastPayload>(`https://api.open-meteo.com/v1/forecast?${params}`);
+      const point = weatherPoint(payload, startsAt);
+      return {
+        location: [location.name, location.country].filter(Boolean).join(", ") || venue,
+        latitude: location.latitude,
+        longitude: location.longitude,
+        elevationM: Number(payload.elevation ?? location.elevation ?? 0),
+        timezone: payload.timezone ?? location.timezone ?? "UTC",
+        observedAt: point.observedAt,
+        temperatureF: numericAt(point.source.temperature_2m, point.index),
+        apparentTemperatureF: numericAt(point.source.apparent_temperature, point.index),
+        humidityPercent: numericAt(point.source.relative_humidity_2m, point.index),
+        precipitationIn: numericAt(point.source.precipitation, point.index),
+        windMph: numericAt(point.source.wind_speed_10m, point.index),
+        gustMph: numericAt(point.source.wind_gusts_10m, point.index),
+        weatherCode: numericAt(point.source.weather_code, point.index),
+        sourceUrl: "https://open-meteo.com/en/docs",
+      };
+    } catch {
+      // A smaller current-only request is a resilient fallback for edge runtimes.
+    }
   }
+  return null;
 }
 
 function haversine(first: GeocodingResult, second: GeocodingResult) {
