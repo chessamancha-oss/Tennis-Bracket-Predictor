@@ -1,6 +1,6 @@
 # Baseline Labs — Tennis Predictor
 
-Baseline Labs is a professional tennis forecasting workspace. It combines a 7,255-player historical catalogue, surface-aware latent ability, Bayesian serve and return estimates, point-by-point Monte Carlo scoring, custom tournament simulation, and a self-refreshing live tour desk.
+Baseline Labs is a professional tennis forecasting workspace. It combines a 7,255-player historical catalogue, surface-aware latent ability, Bayesian serve and return estimates, point-by-point Monte Carlo scoring, custom tournament simulation, a self-refreshing live tour desk, and a source-visible match-context layer.
 
 The repository also retains a tested Python bracket CLI for reproducible batch experiments. The web product is the primary v3 experience.
 
@@ -24,6 +24,15 @@ The repository also retains a tested Python bracket CLI for reproducible batch e
 - Read a dynamic interpretation for every entered value.
 - Keep extreme inputs numerically stable through bounded probabilistic transforms rather than silently rejecting them.
 
+### Context intelligence
+
+- Select a current ATP or WTA event for a same-tour professional matchup.
+- Read current or match-hour temperature, humidity, wind, precipitation, and elevation from Open-Meteo.
+- Estimate recovery time, recent venue-to-venue travel distance, and time-zone load from the preceding 21-day result window.
+- Discover recent injury, withdrawal, recovery, and coaching-change reporting with direct publisher links.
+- Apply only trusted or independently corroborated adverse availability reporting directionally; a lone unverified headline only widens uncertainty.
+- Convert a confirmed selected-event withdrawal into a walkover instead of simulating a match that cannot occur.
+
 ### Bracket lab
 
 - Add professionals from the historical catalogue, add custom entrants, or paste an entire roster.
@@ -36,6 +45,7 @@ The repository also retains a tested Python bracket CLI for reproducible batch e
 - Reads the ATP and WTA tournaments active on the current date.
 - Shows completed scores, in-progress match state, unresolved draw slots, and forecasts for known future matchups.
 - Refreshes every 60 seconds so completed results lock into the bracket and newly resolved matchups receive new forecasts.
+- Offers an on-demand contextual recalculation for each known live matchup.
 - Currently uses the ESPN tennis scoreboard as the operational live-result layer; official tournament links remain available for verification.
 
 ## Model overview
@@ -48,7 +58,8 @@ This is not a weighted checklist. The v3 browser model is generative:
 4. latent ability is drawn from uncertainty-aware normal posteriors;
 5. open-ended pressure and fitness inputs act only in the match states they describe;
 6. the simulator plays points into advantage games, tiebreaks, sets, and full matches; and
-7. bracket forecasts repeat the same engine through a complete single-elimination path, preserving byes.
+7. bounded context adjustments alter the latent player profiles before simulation; and
+8. bracket forecasts repeat the same engine through a complete single-elimination path, preserving byes.
 
 See [MODEL_CARD.md](MODEL_CARD.md) for assumptions, intended use, limitations, and the evaluation roadmap.
 

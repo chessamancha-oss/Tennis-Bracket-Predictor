@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { catalogueByNames, normalizePlayerName } from "../../../lib/player-database";
+import { catalogueByNames, fallbackTourProfile, normalizePlayerName } from "../../../lib/player-database";
 import { predictMatch, type PlayerProfile, type Tour } from "../../../lib/model";
 
 interface RawCompetitor {
@@ -39,38 +39,6 @@ interface Scoreboard {
 
 function isoDay(date: Date) {
   return date.toISOString().slice(0, 10).replaceAll("-", "");
-}
-
-function fallbackProfile(name: string, tour: Tour, seed?: number): PlayerProfile {
-  const rating = seed ? 1880 - Math.log2(Math.max(1, seed)) * 52 : 1510;
-  const serve = tour === "ATP" ? 0.635 : 0.585;
-  return {
-    id: `live-${tour.toLowerCase()}-${normalizePlayerName(name).replaceAll(" ", "-")}`,
-    tour,
-    name,
-    rank: null,
-    rankingPoints: null,
-    country: "Live draw",
-    hand: "Unknown",
-    age: null,
-    rating,
-    surfaceRating: { hard: rating, clay: rating - 8, grass: rating - 4 },
-    ratingSigma: seed ? 118 : 172,
-    matches52w: seed ? 22 : 6,
-    wins52w: seed ? 14 : 3,
-    form90d: seed ? 0.61 : 0.5,
-    servePointsWon: serve,
-    returnPointsWon: 1 - serve,
-    holdRate: tour === "ATP" ? 0.79 : 0.72,
-    aceRate: null,
-    doubleFaultRate: null,
-    serveSample: 30,
-    returnSample: 30,
-    surfaceSamples: { hard: 4, clay: 4, grass: 2 },
-    lastMatchDate: null,
-    rankingSnapshot: null,
-    historyCutoff: null,
-  };
 }
 
 function competitorName(competitor: RawCompetitor) {
@@ -114,8 +82,8 @@ async function tournament(event: RawEvent, tour: Tour) {
     const state = match.status?.type?.state ?? "pre";
     let forecast = null;
     if (state !== "post" && firstName !== "TBD" && secondName !== "TBD") {
-      const firstProfile = catalogue.get(normalizePlayerName(firstName)) ?? fallbackProfile(firstName, tour, first?.curatedRank?.current);
-      const secondProfile = catalogue.get(normalizePlayerName(secondName)) ?? fallbackProfile(secondName, tour, second?.curatedRank?.current);
+      const firstProfile = catalogue.get(normalizePlayerName(firstName)) ?? fallbackTourProfile(firstName, tour, first?.curatedRank?.current);
+      const secondProfile = catalogue.get(normalizePlayerName(secondName)) ?? fallbackTourProfile(secondName, tour, second?.curatedRank?.current);
       const result = predictMatch(firstProfile, secondProfile, surface, 3, 540, 18);
       forecast = {
         winner: result.projectedWinner,
@@ -153,9 +121,26 @@ async function tournament(event: RawEvent, tour: Tour) {
   };
 }
 
-export async function GET() {
+function tournamentSummary(event: RawEvent, tour: Tour) {
+  const desiredGrouping = tour === "ATP" ? "mens-singles" : "womens-singles";
+  const singles = (event.groupings ?? []).find((group) => group.grouping?.slug === desiredGrouping);
+  if (!singles?.competitions?.length) return null;
+  const surface = inferSurface(event);
+  return {
+    id: `${tour}-${event.id ?? event.name}`,
+    tour,
+    name: event.name ?? `${tour} tournament`,
+    venue: event.venue?.displayName ?? "Tour event",
+    surface,
+    startsAt: event.date ?? null,
+    endsAt: event.endDate ?? null,
+  };
+}
+
+export async function GET(request: Request) {
   const now = new Date();
   const date = isoDay(now);
+  const summaryOnly = new URL(request.url).searchParams.get("summary") === "1";
   try {
     const tours: Tour[] = ["ATP", "WTA"];
     const scoreboards: Array<readonly [Tour, Scoreboard | null]> = [];
@@ -168,6 +153,12 @@ export async function GET() {
         cache: "no-store",
       });
       scoreboards.push([tour, response.ok ? await response.json() as Scoreboard : null] as const);
+    }
+    if (summaryOnly) {
+      const tournaments = scoreboards.flatMap(([tour, board]) => (board?.events ?? []).map((event) => tournamentSummary(event, tour))).filter((item) => item !== null);
+      return NextResponse.json({ tournaments, updatedAt: now.toISOString(), refreshSeconds: 300 }, {
+        headers: { "Cache-Control": "public, max-age=120, s-maxage=300, stale-while-revalidate=900" },
+      });
     }
     const nested = await Promise.all(scoreboards.flatMap(([tour, board]) => (board?.events ?? []).map((event) => tournament(event, tour))));
     const tournaments = nested.filter((item) => item !== null);

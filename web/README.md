@@ -1,6 +1,6 @@
 # Baseline Labs web studio
 
-The primary Baseline Labs product is a vinext/React application deployable through OpenAI Sites. The 1v1 and custom-bracket engines run in the browser. Historical profile search uses a read-only D1 catalogue, and the live tour API reads short-lived ATP/WTA scoreboard data without storing user input.
+The primary Baseline Labs product is a vinext/React application deployable through OpenAI Sites. The 1v1 and custom-bracket engines run in the browser. Historical profile search uses a read-only D1 catalogue. Server routes read short-lived tournament, conditions, travel, and news context without storing user input.
 
 ## Commands
 
@@ -20,7 +20,10 @@ node --test tests/rendered-html.test.mjs
 - `app/PlayerSearch.tsx` — debounced any-era catalogue search
 - `app/api/players/route.ts` — indexed D1 player lookup
 - `app/api/live/route.ts` — current tournament draw and forecast layer
+- `app/api/context/route.ts` — context-aware matchup forecast endpoint
 - `lib/model.ts` — posterior sampling and tennis scoring simulation
+- `lib/context.ts` — bounded context rules and latent-profile adjustments
+- `lib/context-data.ts` — weather, travel, and recent-reporting retrieval
 - `lib/bracket.ts` — single-elimination bracket propagation and bye handling
 - `lib/player-database.ts` — prepared D1 queries and model-profile conversion
 - `data/players.generated.ts` — versioned derived professional profiles
