@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { playerDatabaseSummary } from "../data/player-database-summary.generated";
 import { professionalPlayers } from "../data/players.generated";
 import { forecastBracket, type BracketParticipant, type ForecastBracket } from "../lib/bracket";
+import type { ContextReport } from "../lib/context";
 import { advancedProfile, predictMatch, type AdvancedProfileInputs, type PlayerProfile, type PredictionResult, type Surface } from "../lib/model";
 import { PlayerSearch, type SearchablePlayer } from "./PlayerSearch";
 
@@ -22,6 +23,23 @@ const currentPlayers: SearchablePlayer[] = professionalPlayers.map((player) => (
 
 const surfaceLabels: Record<Surface, string> = { hard: "Hard", clay: "Clay", grass: "Grass" };
 const percent = (value: number, digits = 0) => `${(value * 100).toFixed(digits)}%`;
+
+interface ContextEvent {
+  id: string;
+  tour: "ATP" | "WTA";
+  name: string;
+  venue: string;
+  surface: Surface;
+  startsAt: string | null;
+  endsAt: string | null;
+}
+
+interface ContextPayload {
+  report: ContextReport;
+  baseline: PredictionResult;
+  forecast: PredictionResult;
+  probabilityDelta: number;
+}
 
 const defaultAdvanced: Record<Side, AdvancedProfileInputs> = {
   one: { rating: 1850, surfaceRating: 1900, ratingUncertainty: 95, servePointsWon: 66, returnPointsWon: 39, formRate: 68, sampleMatches: 42, clutchIndex: 1.2, fitnessIndex: 1.5 },
@@ -68,10 +86,10 @@ export function PredictionStudio() {
     </header>
 
     <section className="hero-clean">
-      <div className="hero-kicker"><span>Probabilistic tennis intelligence</span><i /> Model v3.0</div>
+      <div className="hero-kicker"><span>Probabilistic tennis intelligence</span><i /> Model v3.1</div>
       <div className="hero-grid">
         <h1>Forecast the point.<br />Then the path.</h1>
-        <div><p>Compare any era, build an unrestricted player profile, simulate a full tournament, or follow a live draw as it changes.</p><button onClick={() => { setView("match"); document.getElementById("workspace")?.scrollIntoView({ behavior: "smooth" }); }}>Start forecasting <span>↘</span></button></div>
+        <div><p>Compare any era, model real match context, simulate a full tournament, or follow a live draw as weather and availability signals change.</p><button onClick={() => { setView("match"); document.getElementById("workspace")?.scrollIntoView({ behavior: "smooth" }); }}>Start forecasting <span>↘</span></button></div>
       </div>
       <div className="signal-strip">
         <div><strong>{playerDatabaseSummary.count.toLocaleString()}</strong><span>searchable ATP + WTA profiles</span></div>
@@ -93,8 +111,8 @@ export function PredictionStudio() {
     <Methodology />
     <footer>
       <a className="brand footer-brand" href="#top"><span className="brand-dot" /><span>BASELINE</span><b>LABS</b></a>
-      <p>Transparent research software. Forecasts express model uncertainty and are not betting advice. No affiliation with the ATP, WTA, ESPN, or tournament operators.</p>
-      <div><a href="https://www.usopen.org/en_US/about/eventschedule.html" target="_blank" rel="noreferrer">US Open schedule ↗</a><a href="https://github.com/Aneeshers/tennis-sackmann-archive" target="_blank" rel="noreferrer">Data archive ↗</a></div>
+      <p>Transparent research software. Forecasts express model uncertainty and are not betting advice. News signals are not medical confirmation. No affiliation with data sources or tournament operators.</p>
+      <div><a href="https://open-meteo.com/en/docs" target="_blank" rel="noreferrer">Conditions source ↗</a><a href="https://github.com/Aneeshers/tennis-sackmann-archive" target="_blank" rel="noreferrer">Player archive ↗</a></div>
     </footer>
   </main>;
 }
@@ -110,36 +128,135 @@ function MatchLab() {
   const [activeSide, setActiveSide] = useState<Side>("one");
   const [result, setResult] = useState<PredictionResult | null>(() => predictMatch(currentPlayers[0], currentPlayers[1], "hard", 3));
   const [running, setRunning] = useState(false);
+  const [contextEvents, setContextEvents] = useState<ContextEvent[]>([]);
+  const [contextEventId, setContextEventId] = useState<string | null>(null);
+  const [contextPayload, setContextPayload] = useState<ContextPayload | null>(null);
+  const [contextError, setContextError] = useState("");
   const customOne = useMemo(() => advancedProfile("advanced-one", names.one, inputs.one, surface), [inputs.one, names.one, surface]);
   const customTwo = useMemo(() => advancedProfile("advanced-two", names.two, inputs.two, surface), [inputs.two, names.two, surface]);
   const selectedOne = mode === "professional" ? one : customOne;
   const selectedTwo = mode === "professional" ? two : customTwo;
+  const contextEligible = mode === "professional" && one.tour === two.tour;
+  const availableContextEvents = contextEligible ? contextEvents.filter((event) => event.tour === one.tour) : [];
+  const selectedContextEvent = contextEventId === "" ? null : (
+    availableContextEvents.find((event) => event.id === contextEventId)
+      ?? availableContextEvents.find((event) => event.name.toLowerCase().includes("us open"))
+      ?? availableContextEvents[0]
+      ?? null
+  );
 
-  function run() {
+  useEffect(() => {
+    let active = true;
+    fetch("/api/live?summary=1")
+      .then(async (response) => await response.json() as { tournaments?: ContextEvent[] })
+      .then((payload) => {
+        if (!active) return;
+        setContextEvents(payload.tournaments ?? []);
+      })
+      .catch(() => { if (active) setContextEvents([]); });
+    return () => { active = false; };
+  }, []);
+
+  async function run() {
     setRunning(true);
-    window.setTimeout(() => {
+    setContextError("");
+    try {
+      if (contextEligible && selectedContextEvent) {
+        const response = await fetch("/api/context", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            playerOne: one.name,
+            playerTwo: two.name,
+            tour: one.tour,
+            surface,
+            bestOf,
+            eventName: selectedContextEvent.name,
+            venue: selectedContextEvent.venue,
+            startsAt: new Date().toISOString(),
+          }),
+        });
+        const payload = await response.json() as ContextPayload & { error?: string };
+        if (!response.ok) throw new Error(payload.error || "Context sources unavailable");
+        setContextPayload(payload);
+        setResult(payload.forecast);
+      } else {
+        setContextPayload(null);
+        setResult(predictMatch(selectedOne, selectedTwo, surface, bestOf));
+      }
+    } catch (error) {
+      setContextPayload(null);
+      setContextError(error instanceof Error ? error.message : "Context sources unavailable");
       setResult(predictMatch(selectedOne, selectedTwo, surface, bestOf));
+    } finally {
       setRunning(false);
       window.setTimeout(() => document.getElementById("match-forecast")?.scrollIntoView({ behavior: "smooth", block: "center" }), 30);
-    }, 60);
+    }
   }
 
   return <div className="lab-panel">
     <header className="panel-heading"><div><span>01 / HEAD TO HEAD</span><h2>Build one matchup.</h2></div><p>Use current or career-peak professional priors, or enter raw model inputs without a fixed scoring scale.</p></header>
     <div className="submode-switch">
-      <button className={mode === "professional" ? "active" : ""} onClick={() => { setMode("professional"); setResult(null); }}><strong>Professional library</strong><small>Search every indexed era</small></button>
-      <button className={mode === "custom" ? "active" : ""} onClick={() => { setMode("custom"); setResult(null); }}><strong>Unrestricted profile</strong><small>Direct statistical inputs</small></button>
+      <button className={mode === "professional" ? "active" : ""} onClick={() => { setMode("professional"); setResult(null); setContextPayload(null); }}><strong>Professional library</strong><small>Search every indexed era</small></button>
+      <button className={mode === "custom" ? "active" : ""} onClick={() => { setMode("custom"); setResult(null); setContextPayload(null); }}><strong>Unrestricted profile</strong><small>Direct statistical inputs</small></button>
     </div>
 
     {mode === "professional" ? <div className="versus-card">
-      <PlayerSearch label="Player one" selected={one} excludeId={two.id} onSelect={(player) => { setOne(player); setResult(null); }} />
+      <PlayerSearch label="Player one" selected={one} excludeId={two.id} onSelect={(player) => { setOne(player); setResult(null); setContextPayload(null); }} />
       <div className="versus-mark"><span>VS</span></div>
-      <PlayerSearch label="Player two" selected={two} excludeId={one.id} onSelect={(player) => { setTwo(player); setResult(null); }} />
+      <PlayerSearch label="Player two" selected={two} excludeId={one.id} onSelect={(player) => { setTwo(player); setResult(null); setContextPayload(null); }} />
     </div> : <AdvancedBuilder active={activeSide} names={names} inputs={inputs} onActive={setActiveSide} onName={(side, name) => { setNames((current) => ({ ...current, [side]: name })); setResult(null); }} onInput={(side, key, value) => { setInputs((current) => ({ ...current, [side]: { ...current[side], [key]: value } })); setResult(null); }} />}
 
-    <ForecastControls surface={surface} bestOf={bestOf} running={running} onSurface={(value) => { setSurface(value); setResult(null); }} onBestOf={(value) => { setBestOf(value); setResult(null); }} onRun={run} label="Run full forecast" />
+    <ContextControls events={availableContextEvents} selectedId={selectedContextEvent?.id ?? ""} eligible={contextEligible} error={contextError} onSelect={(id) => { const event = contextEvents.find((item) => item.id === id); setContextEventId(id); if (event) setSurface(event.surface); setContextPayload(null); setResult(null); }} />
+    <ForecastControls surface={surface} bestOf={bestOf} running={running} onSurface={(value) => { setSurface(value); setResult(null); setContextPayload(null); }} onBestOf={(value) => { setBestOf(value); setResult(null); setContextPayload(null); }} onRun={run} label={selectedContextEvent ? "Run context-aware forecast" : "Run full forecast"} />
     <ForecastPanel result={result} one={selectedOne} two={selectedTwo} surface={surface} />
+    {contextPayload ? <ContextReportPanel payload={contextPayload} /> : null}
   </div>;
+}
+
+function ContextControls({ events, selectedId, eligible, error, onSelect }: {
+  events: ContextEvent[];
+  selectedId: string;
+  eligible: boolean;
+  error: string;
+  onSelect: (id: string) => void;
+}) {
+  return <section className="context-control">
+    <div className="context-control-copy"><span><i /> LIVE CONTEXT INTELLIGENCE</span><h3>Model what is happening around the match.</h3><p>Venue weather, altitude, recent travel, recovery time, injury reporting, coaching changes, and current availability news can modify the latent player profiles.</p></div>
+    <label>
+      <span>Match context</span>
+      <select value={selectedId} disabled={!eligible} onChange={(event) => onSelect(event.target.value)}>
+        <option value="">Neutral / hypothetical conditions</option>
+        {events.map((event) => <option key={event.id} value={event.id}>{event.tour} · {event.name} — {event.venue}</option>)}
+      </select>
+      <small>{!eligible ? "Choose two professional players from the same tour to load live context." : selectedId ? "The next run will retrieve and apply current evidence." : "The statistical model will run without live external context."}</small>
+      {error ? <em>{error}. The forecast above used the base model.</em> : null}
+    </label>
+  </section>;
+}
+
+function signedPoints(value: number) {
+  return `${value > 0 ? "+" : ""}${value.toFixed(1)} pp`;
+}
+
+function ContextReportPanel({ payload, compact = false }: { payload: ContextPayload; compact?: boolean }) {
+  const { report } = payload;
+  const conditions = report.conditions;
+  return <section className={`context-report ${compact ? "compact" : ""}`}>
+    <header><div><span>CONTEXT SNAPSHOT · {new Date(report.generatedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</span><h3>{report.eventName}</h3><p>{report.venue} · context moved player one by <strong>{signedPoints(payload.probabilityDelta * 100)}</strong>.</p></div><b>{payload.probabilityDelta === 0 ? "EVEN" : payload.probabilityDelta > 0 ? "P1 ↑" : "P2 ↑"}</b></header>
+    {conditions ? <div className="conditions-strip">
+      <div><span>Conditions</span><strong>{conditions.temperatureF.toFixed(0)}°F</strong><small>feels {conditions.apparentTemperatureF.toFixed(0)}°</small></div>
+      <div><span>Wind / gusts</span><strong>{conditions.windMph.toFixed(0)} / {conditions.gustMph.toFixed(0)}</strong><small>mph</small></div>
+      <div><span>Humidity</span><strong>{conditions.humidityPercent.toFixed(0)}%</strong><small>{conditions.precipitationIn.toFixed(2)} in precip.</small></div>
+      <div><span>Elevation</span><strong>{Math.round(conditions.elevationM).toLocaleString()} m</strong><small>{conditions.location}</small></div>
+    </div> : <div className="context-missing">Venue conditions could not be resolved; player-specific context was still evaluated.</div>}
+    <div className="player-context-grid">{report.players.map((player) => <article key={player.player}>
+      <header><div><span>PLAYER CONTEXT</span><h4>{player.player}</h4><em className={player.availability}>{player.availability}</em></div><strong className={player.ratingDelta < 0 ? "negative" : player.ratingDelta > 0 ? "positive" : ""}>{player.ratingDelta > 0 ? "+" : ""}{player.ratingDelta}<small> rating pts</small></strong></header>
+      <div className="context-factors">{player.factors.length ? player.factors.map((factor) => <div key={factor.id}><i className={factor.ratingPoints < 0 ? "risk" : factor.ratingPoints > 0 ? "boost" : "watch"} /><span><strong>{factor.label}</strong><small>{factor.detail}</small></span><em>{factor.confidence}</em></div>) : <p>No material player-specific context signal was found.</p>}</div>
+      {player.news.length ? <div className="news-signals"><span>RECENT REPORTING</span>{player.news.map((signal) => <a href={signal.url} target="_blank" rel="noreferrer" key={signal.id}><strong>{signal.title}</strong><small>{signal.source} · {new Date(signal.publishedAt).toLocaleDateString()}</small></a>)}</div> : null}
+    </article>)}</div>
+    {!compact ? <footer><div><strong>Evidence policy</strong><p>{report.limitations.join(" ")}</p></div><div><a href="https://open-meteo.com/en/docs" target="_blank" rel="noreferrer">Weather methodology ↗</a><a href="https://news.google.com/" target="_blank" rel="noreferrer">News discovery ↗</a></div></footer> : null}
+  </section>;
 }
 
 function AdvancedBuilder({ active, names, inputs, onActive, onName, onInput }: {
@@ -317,6 +434,8 @@ function LiveTourDesk() {
   const [updatedAt, setUpdatedAt] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [matchContexts, setMatchContexts] = useState<Record<string, ContextPayload>>({});
+  const [contextLoading, setContextLoading] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -349,26 +468,72 @@ function LiveTourDesk() {
     return [...grouped.entries()].sort((a, b) => roundOrder(a[0]) - roundOrder(b[0]));
   }, [selected]);
 
+  async function loadMatchContext(match: LiveMatch) {
+    if (!selected || match.players.some((player) => player.name === "TBD")) return;
+    setContextLoading(match.id);
+    try {
+      const surface = selected.surface.toLowerCase() === "clay" || selected.surface.toLowerCase() === "grass" ? selected.surface.toLowerCase() : "hard";
+      const bestOf = selected.tour === "ATP" && selected.name.toLowerCase().includes("open") && !match.round.toLowerCase().includes("qualifying") && selected.name.toLowerCase().includes("us") ? 5 : 3;
+      const response = await fetch("/api/context", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          playerOne: match.players[0].name,
+          playerTwo: match.players[1].name,
+          tour: selected.tour,
+          surface,
+          bestOf,
+          eventName: selected.name,
+          venue: selected.venue,
+          startsAt: match.startsAt,
+        }),
+      });
+      const payload = await response.json() as ContextPayload & { error?: string };
+      if (!response.ok) throw new Error(payload.error || "Context unavailable");
+      setMatchContexts((current) => ({ ...current, [match.id]: payload }));
+    } catch {
+      setMatchContexts((current) => ({ ...current }));
+    } finally {
+      setContextLoading("");
+    }
+  }
+
   return <div className="lab-panel live-panel">
     <header className="panel-heading"><div><span>03 / LIVE TOUR DESK</span><h2>The draw, still moving.</h2></div><p>Completed results lock into the bracket. Known future matchups are re-forecast from the latest field every sixty seconds.</p></header>
     <div className="live-status"><div><i className={error ? "error" : ""} /><strong>{error ? "Feed interrupted" : "Auto-refreshing"}</strong><span>{updatedAt ? `Last checked ${new Date(updatedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}` : "Connecting to tour scoreboards"}</span></div><span>LIVE RESULTS + MODEL LAYER</span></div>
     {loading ? <div className="live-loading"><i /><strong>Reading today’s ATP and WTA draws…</strong></div> : error && !selected ? <div className="live-loading error"><strong>Live data is temporarily unavailable.</strong><p>{error}</p></div> : selected ? <>
       <div className="event-tabs">{tournaments.map((event) => <button key={event.id} className={selected.id === event.id ? "active" : ""} onClick={() => setSelectedId(event.id)}><span>{event.tour}</span><strong>{event.name}</strong><small>{event.venue}</small></button>)}</div>
       <div className="live-event-head"><div><span>{selected.tour} · {selected.surface.toUpperCase()} COURT</span><h3>{selected.name}</h3><p>{selected.venue} · actual results are preserved; unplayed matches show model scores and probabilities.</p></div>{selected.bracketLink ? <a href={selected.bracketLink} target="_blank" rel="noreferrer">Official draw ↗</a> : null}</div>
-      <div className="live-bracket-scroll">{rounds.map(([round, matches]) => <section className="live-round" key={round}><h4>{round}<span>{matches.length}</span></h4>{matches.map((match) => <article className={`live-match ${match.state}`} key={match.id}>
-        <header><span>{match.state === "post" ? "FINAL" : match.state === "in" ? "IN PLAY" : "FORECAST"}</span><small>{match.court || match.status}</small></header>
-        {match.players.map((player, index) => <div className={player.winner || match.forecast?.winner === player.name ? "winner" : ""} key={`${match.id}-${player.name}-${index}`}><span>{player.name}</span><b>{match.state === "post" ? player.score : match.forecast ? percent(index === 0 ? match.forecast.firstProbability : 1 - match.forecast.firstProbability) : "—"}</b></div>)}
-        <footer>{match.state === "post" ? <span>Actual result</span> : match.forecast ? <><span>Projected {match.forecast.score}</span><strong>{match.forecast.winner}</strong></> : <span>Awaiting prior-round winner</span>}</footer>
-      </article>)}</section>)}</div>
+      <div className="live-bracket-scroll">{rounds.map(([round, matches]) => <section className="live-round" key={round}><h4>{round}<span>{matches.length}</span></h4>{matches.map((match) => {
+        const context = matchContexts[match.id];
+        const forecast = context ? { winner: context.forecast.projectedWinner, firstProbability: context.forecast.playerOneProbability, score: context.forecast.likelySetScore } : match.forecast;
+        return <article className={`live-match ${match.state}`} key={match.id}>
+          <header><span>{match.state === "post" ? "FINAL" : match.state === "in" ? "IN PLAY" : context ? "CONTEXT FORECAST" : "BASE FORECAST"}</span><small>{match.court || match.status}</small></header>
+          {match.players.map((player, index) => <div className={player.winner || forecast?.winner === player.name ? "winner" : ""} key={`${match.id}-${player.name}-${index}`}><span>{player.name}</span><b>{match.state === "post" ? player.score : forecast ? percent(index === 0 ? forecast.firstProbability : 1 - forecast.firstProbability) : "—"}</b></div>)}
+          <footer>{match.state === "post" ? <span>Actual result</span> : forecast ? <><span>Projected {forecast.score}</span><strong>{forecast.winner}</strong></> : <span>Awaiting prior-round winner</span>}</footer>
+          {match.state !== "post" && match.players.every((player) => player.name !== "TBD") ? <button className="context-match-action" disabled={contextLoading === match.id} onClick={() => loadMatchContext(match)}>{contextLoading === match.id ? "Reading live context…" : context ? "Refresh injuries + conditions" : "Add injuries + live context"}</button> : null}
+          {context ? <LiveContextMini payload={context} /> : null}
+        </article>;
+      })}</section>)}</div>
       <div className="live-disclosure"><strong>How updates work</strong><p>The scoreboard is requested every 60 seconds. Finished matches replace forecasts; newly resolved matchups receive fresh posterior simulations. Timing can trail the official tournament feed.</p></div>
     </> : <div className="live-loading"><strong>No ATP or WTA singles tournament was returned for today.</strong></div>}
   </div>;
 }
 
+function LiveContextMini({ payload }: { payload: ContextPayload }) {
+  const conditions = payload.report.conditions;
+  return <div className="live-context-mini">
+    <header><span>FULL CONTEXT RECALCULATION</span><strong>{signedPoints(payload.probabilityDelta * 100)}</strong></header>
+    {conditions ? <p>{conditions.temperatureF.toFixed(0)}°F · wind {conditions.windMph.toFixed(0)} mph · {Math.round(conditions.elevationM)} m elevation</p> : <p>Venue weather unresolved; news and travel checks completed.</p>}
+    {payload.report.players.map((player) => <div key={player.player}><strong>{player.player} · {player.availability}</strong><span>{player.ratingDelta > 0 ? "+" : ""}{player.ratingDelta} rating · +{player.uncertaintyDelta} uncertainty</span><small>{player.factors.slice(0, 2).map((factor) => factor.label).join(" · ") || "No material signal"}</small></div>)}
+    <small>Reported headlines without corroboration widen uncertainty but do not directly penalize a player.</small>
+  </div>;
+}
+
 function Methodology() {
   return <section className="methodology-clean" id="method">
-    <header><div><span>MODEL / TRANSPARENCY</span><h2>Serious mechanics.<br />Visible limits.</h2></div><p>The forecast is a dynamic paired-comparison model with surface pooling, Bayesian skill uncertainty, and literal tennis scoring—not a weighted checklist.</p></header>
-    <div className="method-cards"><article><span>01</span><h3>Latent ability</h3><p>Opponent-adjusted ratings evolve through match history. Retired-player comparisons use a career-peak prior; active players use the latest archive state.</p></article><article><span>02</span><h3>Surface transfer</h3><p>Hard, clay, and grass evidence is partially pooled toward overall strength when samples are small.</p></article><article><span>03</span><h3>Posterior skills</h3><p>Serve, return, and latent rating are resampled so the output includes model uncertainty instead of false precision.</p></article><article><span>04</span><h3>Score engine</h3><p>Points become advantage games, tiebreaks, sets, matches, then bracket paths. Byes advance without invented play.</p></article></div>
-    <div className="method-note"><strong>Responsible use</strong><p>Live injuries, travel, coaching changes, weather, and same-day news are not fully represented. Cross-era comparisons are counterfactual. Treat probabilities as research estimates, never guarantees.</p><a href="https://arxiv.org/abs/1902.07378" target="_blank" rel="noreferrer">Research basis ↗</a></div>
+    <header><div><span>MODEL / TRANSPARENCY</span><h2>Serious mechanics.<br />Visible limits.</h2></div><p>The forecast is a dynamic paired-comparison model with surface pooling, Bayesian skill uncertainty, literal tennis scoring, and a source-visible context layer—not a hidden weighted checklist.</p></header>
+    <div className="method-cards"><article><span>01</span><h3>Latent ability</h3><p>Opponent-adjusted ratings evolve through match history. Retired-player comparisons use a career-peak prior; active players use the latest archive state.</p></article><article><span>02</span><h3>Surface transfer</h3><p>Hard, clay, and grass evidence is partially pooled toward overall strength when samples are small.</p></article><article><span>03</span><h3>Posterior skills</h3><p>Serve, return, and latent rating are resampled so the output includes model uncertainty instead of false precision.</p></article><article><span>04</span><h3>Score engine</h3><p>Points become advantage games, tiebreaks, sets, matches, then bracket paths. Byes advance without invented play.</p></article><article><span>05</span><h3>Context intelligence</h3><p>Weather, altitude, recovery, travel and verified availability reporting alter ability or uncertainty through bounded, inspectable rules.</p></article></div>
+    <div className="method-note"><strong>Evidence policy</strong><p>A single unverified injury headline cannot directly penalize a player. It widens uncertainty until a trusted source or independent corroboration supports a directional change.</p><a href="https://news.google.com/" target="_blank" rel="noreferrer">News discovery ↗</a></div>
   </section>;
 }

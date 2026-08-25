@@ -14,4 +14,6 @@ Historical match aggregates are derived from the public tennis datasets compiled
 
 The live tournament interface separately reads short-lived scoreboard data from ESPN. That response is not redistributed in the committed player dataset and is refreshed on demand. The interface links to official tournament sources for verification.
 
+The context interface reads venue geocoding and weather from Open-Meteo under its published attribution terms. It uses Google News RSS as a discovery layer for this private, personal, non-commercial research deployment and links each surfaced headline to its publisher. Headlines and weather responses are not committed to or redistributed with the player dataset. A separate rights review is required before changing this deployment to public or commercial use.
+
 The model and interface are not affiliated with or endorsed by the ATP, WTA, ESPN, players, tournaments, or data contributors.

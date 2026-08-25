@@ -51,6 +51,38 @@ export function normalizePlayerName(value: string) {
   return value.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 }
 
+export function fallbackTourProfile(name: string, tour: Tour, seed?: number): PlayerProfile {
+  const rating = seed ? 1880 - Math.log2(Math.max(1, seed)) * 52 : 1510;
+  const serve = tour === "ATP" ? 0.635 : 0.585;
+  return {
+    id: `live-${tour.toLowerCase()}-${normalizePlayerName(name).replaceAll(" ", "-")}`,
+    tour,
+    name,
+    rank: null,
+    rankingPoints: null,
+    country: "Live draw",
+    hand: "Unknown",
+    age: null,
+    rating,
+    surfaceRating: { hard: rating, clay: rating - 8, grass: rating - 4 },
+    ratingSigma: seed ? 118 : 172,
+    matches52w: seed ? 22 : 6,
+    wins52w: seed ? 14 : 3,
+    form90d: seed ? 0.61 : 0.5,
+    servePointsWon: serve,
+    returnPointsWon: 1 - serve,
+    holdRate: tour === "ATP" ? 0.79 : 0.72,
+    aceRate: null,
+    doubleFaultRate: null,
+    serveSample: 30,
+    returnSample: 30,
+    surfaceSamples: { hard: 4, clay: 4, grass: 2 },
+    lastMatchDate: null,
+    rankingSnapshot: null,
+    historyCutoff: null,
+  };
+}
+
 function database() {
   return (env as unknown as DatabaseEnv).DB;
 }
