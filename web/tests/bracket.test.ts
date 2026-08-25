@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { forecastBracket } from "../lib/bracket";
+import { forecastBracket, seedBracketParticipants } from "../lib/bracket";
 import { advancedProfile } from "../lib/model";
 
 const inputs = {
@@ -33,4 +33,14 @@ test("non-power-of-two fields receive byes and resolve a complete bracket", () =
   assert.equal(bracket.rounds[0].matches.filter((match) => match.bye).length, 2);
   assert.ok(bracket.champion);
   assert.equal(bracket.rounds.at(-1)?.label, "Final");
+});
+
+test("rating seeding pairs the strongest entrants with the weakest in the opening round", () => {
+  const participants = Array.from({ length: 8 }, (_, index) => {
+    const name = `Seed ${index + 1}`;
+    const rating = 2000 - index * 50;
+    return { id: `seed-${index + 1}`, name, profile: advancedProfile(`seed-${index + 1}`, name, { ...inputs, rating, surfaceRating: rating }, "hard") };
+  });
+  const seeded = seedBracketParticipants(participants);
+  assert.deepEqual(seeded.map((participant) => participant.name), ["Seed 1", "Seed 8", "Seed 2", "Seed 7", "Seed 3", "Seed 6", "Seed 4", "Seed 5"]);
 });

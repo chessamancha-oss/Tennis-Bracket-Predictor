@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { captureCandidates, resultCandidates, type LedgerTournament } from "../lib/prediction-ledger-core";
+import { captureCandidates, emptyTournamentAccuracy, resultCandidates, type LedgerTournament } from "../lib/prediction-ledger-core";
 
 const observedAt = "2026-08-25T16:00:00.000Z";
 
@@ -64,4 +64,19 @@ test("grades final winners without manufacturing predictions for completed match
   ])], observedAt);
 
   assert.deepEqual(results, [{ id: "ATP-189-2026:final", actualWinner: "Actual Winner", resolvedAt: observedAt }]);
+});
+
+test("empty scorecards expose accuracy and calibration metrics without inventing values", () => {
+  assert.deepEqual(emptyTournamentAccuracy(), {
+    captured: 0,
+    pending: 0,
+    graded: 0,
+    correct: 0,
+    wrong: 0,
+    accuracy: null,
+    averageConfidence: null,
+    brierScore: null,
+    trackingSince: null,
+    lastGradedAt: null,
+  });
 });

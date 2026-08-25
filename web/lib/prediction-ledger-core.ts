@@ -23,6 +23,8 @@ export interface TournamentAccuracy {
   correct: number;
   wrong: number;
   accuracy: number | null;
+  averageConfidence: number | null;
+  brierScore: number | null;
   trackingSince: string | null;
   lastGradedAt: string | null;
 }
@@ -89,5 +91,5 @@ export function resultCandidates(tournaments: LedgerTournament[], observedAt: st
 }
 
 export function emptyTournamentAccuracy(): TournamentAccuracy {
-  return { captured: 0, pending: 0, graded: 0, correct: 0, wrong: 0, accuracy: null, trackingSince: null, lastGradedAt: null };
+  return { captured: 0, pending: 0, graded: 0, correct: 0, wrong: 0, accuracy: null, averageConfidence: null, brierScore: null, trackingSince: null, lastGradedAt: null };
 }

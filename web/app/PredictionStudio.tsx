@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { playerDatabaseSummary } from "../data/player-database-summary.generated";
 import { professionalPlayers } from "../data/players.generated";
-import { forecastBracket, type BracketParticipant, type ForecastBracket } from "../lib/bracket";
+import { forecastBracket, seedBracketParticipants, type BracketParticipant, type ForecastBracket } from "../lib/bracket";
 import type { ContextReport } from "../lib/context";
 import { advancedProfile, predictMatch, type AdvancedProfileInputs, type PlayerProfile, type PredictionResult, type Surface } from "../lib/model";
 import { PlayerSearch, type SearchablePlayer } from "./PlayerSearch";
@@ -11,6 +11,7 @@ import { PlayerSearch, type SearchablePlayer } from "./PlayerSearch";
 type ProductView = "match" | "bracket" | "live";
 type MatchMode = "professional" | "custom";
 type Side = "one" | "two";
+type LiveFilter = "all" | "pre" | "in" | "post";
 
 const currentPlayers: SearchablePlayer[] = professionalPlayers.map((player) => ({
   ...player,
@@ -170,6 +171,32 @@ function MatchLab() {
       ?? null
   );
 
+  function swapSides() {
+    if (mode === "professional") {
+      setOne(two);
+      setTwo(one);
+    } else {
+      setNames((current) => ({ one: current.two, two: current.one }));
+      setInputs((current) => ({ one: current.two, two: current.one }));
+      setActiveSide((current) => current === "one" ? "two" : "one");
+    }
+    setResult(null);
+    setContextPayload(null);
+  }
+
+  function resetMatch() {
+    setOne(currentPlayers[0]);
+    setTwo(currentPlayers[1]);
+    setNames({ one: "Player A", two: "Player B" });
+    setInputs({ one: { ...defaultAdvanced.one }, two: { ...defaultAdvanced.two } });
+    setSurface("hard");
+    setBestOf(3);
+    setContextEventId(null);
+    setContextPayload(null);
+    setContextError("");
+    setResult(null);
+  }
+
   useEffect(() => {
     let active = true;
     fetch("/api/live?summary=1")
@@ -231,6 +258,8 @@ function MatchLab() {
       <div className="versus-mark"><span>VS</span></div>
       <PlayerSearch label="Player two" selected={two} excludeId={one.id} onSelect={(player) => { setTwo(player); setResult(null); setContextPayload(null); }} />
     </div> : <AdvancedBuilder active={activeSide} names={names} inputs={inputs} onActive={setActiveSide} onName={(side, name) => { setNames((current) => ({ ...current, [side]: name })); setResult(null); }} onInput={(side, key, value) => { setInputs((current) => ({ ...current, [side]: { ...current[side], [key]: value } })); setResult(null); }} />}
+
+    <div className="match-tools"><div><button type="button" onClick={swapSides}>⇄ Swap sides</button><button type="button" onClick={resetMatch}>Reset matchup</button></div><span>Edits clear the previous result so every forecast matches the visible inputs.</span></div>
 
     <ContextControls events={availableContextEvents} selectedId={selectedContextEvent?.id ?? ""} eligible={contextEligible} error={contextError} onSelect={(id) => { const event = contextEvents.find((item) => item.id === id); setContextEventId(id); if (event) setSurface(event.surface); setContextPayload(null); setResult(null); }} />
     <ForecastControls surface={surface} bestOf={bestOf} running={running} onSurface={(value) => { setSurface(value); setResult(null); setContextPayload(null); }} onBestOf={(value) => { setBestOf(value); setResult(null); setContextPayload(null); }} onRun={run} label={selectedContextEvent ? "Run context-aware forecast" : "Run full forecast"} />
@@ -333,7 +362,35 @@ function ForecastPanel({ result, one, two, surface }: { result: PredictionResult
     <div className="split-meter"><i style={{ width: `${result.playerOneProbability * 100}%` }} /><span>{one.name} · {percent(result.playerOneProbability)}</span><span>{percent(result.playerTwoProbability)} · {two.name}</span></div>
     <div className="result-stats"><div><span>Likely score</span><strong>{result.likelySetScore}</strong></div><div><span>Expected sets</span><strong>{result.expectedSets.toFixed(2)}</strong></div><div><span>Tiebreak chance</span><strong>{percent(result.tieBreakChance)}</strong></div><div><span>Expected games</span><strong>{result.expectedGames.toFixed(1)}</strong></div></div>
     <div className="evidence-clean"><header><span>WHY THE MODEL LEANS</span><p>Separate diagnostics, not checklist weights.</p></header>{result.evidence.map((item) => <div key={item.label}><span><strong>{item.label}</strong><small>{item.detail}</small></span><i><b style={{ width: `${Math.max(6, item.strength * 100)}%` }} /></i><em>{item.leader === "one" ? one.name.split(" ").at(-1) : item.leader === "two" ? two.name.split(" ").at(-1) : "Even"}</em></div>)}</div>
+    <ForecastResultTools result={result} one={one} two={two} surface={surface} />
   </section>;
+}
+
+function ForecastResultTools({ result, one, two, surface }: { result: PredictionResult; one: PlayerProfile; two: PlayerProfile; surface: Surface }) {
+  const [status, setStatus] = useState("");
+  const summary = `Baseline Labs forecast: ${result.projectedWinner} over ${result.projectedWinner === one.name ? two.name : one.name} at ${percent(Math.max(result.playerOneProbability, result.playerTwoProbability))} on ${surfaceLabels[surface].toLowerCase()} (${result.likelySetScore}).`;
+
+  async function share() {
+    setStatus("");
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: `${one.name} vs ${two.name} forecast`, text: summary, url: window.location.href });
+        setStatus("Shared");
+      } else {
+        await navigator.clipboard.writeText(`${summary} ${window.location.href}`);
+        setStatus("Forecast copied");
+      }
+    } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") return;
+      setStatus("Sharing is unavailable in this browser");
+    }
+  }
+
+  return <div className="forecast-result-tools">
+    <button type="button" onClick={share}>Share forecast ↗</button>
+    <details><summary>How to read this result</summary><p>The headline percentage is the share of simulated matches won. The posterior interval reflects uncertainty in the players’ latent abilities; it is not a promise that the true chance lies in that range.</p></details>
+    <span role="status" aria-live="polite">{status}</span>
+  </div>;
 }
 
 function editableParticipant(id: string, name: string, rating: number, surface: Surface): BracketParticipant {
@@ -378,6 +435,28 @@ function BracketLab() {
     setResult(null);
   }
 
+  function seedByRating() {
+    setParticipants(seedBracketParticipants);
+    setResult(null);
+  }
+
+  function shuffleField() {
+    setParticipants((current) => {
+      const shuffled = [...current];
+      for (let index = shuffled.length - 1; index > 0; index -= 1) {
+        const random = globalThis.crypto.getRandomValues(new Uint32Array(1))[0] % (index + 1);
+        [shuffled[index], shuffled[random]] = [shuffled[random], shuffled[index]];
+      }
+      return shuffled;
+    });
+    setResult(null);
+  }
+
+  function loadSampleField() {
+    setParticipants(currentPlayers.slice(0, 8).map((player) => ({ id: entrantId(player.id), name: player.name, profile: player })));
+    setResult(null);
+  }
+
   function updateParticipant(index: number, key: "name" | "rating", value: string | number) {
     setParticipants((current) => current.map((participant, itemIndex) => {
       if (itemIndex !== index) return participant;
@@ -401,6 +480,7 @@ function BracketLab() {
       <aside className="roster-panel">
         <div className="roster-head"><div><span>FIELD</span><strong>{participants.length} entrants</strong></div><small>No fixed participant cap</small></div>
         <PlayerSearch compact label="Add professional" onSelect={addPlayer} />
+        <details className="bracket-tools"><summary>Draw tools</summary><div><button type="button" onClick={seedByRating} disabled={participants.length < 2}>Seed opening round</button><button type="button" onClick={shuffleField} disabled={participants.length < 2}>Shuffle order</button><button type="button" onClick={loadSampleField}>Load sample eight</button><button type="button" className="danger" onClick={() => { setParticipants([]); setResult(null); }}>Clear field</button></div></details>
         <div className="quick-add"><input aria-label="Custom entrant name" value={newName} onChange={(event) => setNewName(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") addNamed(); }} placeholder="Add a custom entrant" /><button type="button" onClick={addNamed}>Add</button></div>
         <button type="button" className="paste-toggle" aria-expanded={pasteOpen} aria-controls="roster-import" onClick={() => setPasteOpen((current) => !current)}>{pasteOpen ? "Close roster import" : "Paste a full roster"} <span aria-hidden="true">↘</span></button>
         {pasteOpen ? <div className="roster-import" id="roster-import"><textarea aria-label="Roster names" value={rosterText} onChange={(event) => setRosterText(event.target.value)} placeholder={'One player per line\nRoger Federer\nSerena Williams\n...'} /><button type="button" onClick={importRoster}>Replace field from list</button></div> : null}
@@ -416,8 +496,34 @@ function BracketLab() {
 }
 
 function PredictedBracket({ bracket, category }: { bracket: ForecastBracket; category: string }) {
+  function exportCsv() {
+    const escape = (value: string | number) => `"${String(value).replaceAll('"', '""')}"`;
+    const rows = [["Round", "Match", "Player one", "Player one probability", "Player two", "Player two probability", "Projected winner", "Projected score"]];
+    for (const round of bracket.rounds) {
+      round.matches.forEach((match, index) => rows.push([
+        round.label,
+        String(index + 1),
+        match.one?.name ?? "BYE",
+        match.firstProbability === null ? "" : percent(match.firstProbability, 1),
+        match.two?.name ?? "BYE",
+        match.firstProbability === null ? "" : percent(1 - match.firstProbability, 1),
+        match.winner?.name ?? "Open",
+        match.bye ? "Automatic advance" : match.score,
+      ]));
+    }
+    const blob = new Blob([rows.map((row) => row.map(escape).join(",")).join("\n")], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${category.toLowerCase().replaceAll(/[^a-z0-9]+/g, "-").replaceAll(/^-|-$/g, "") || "tennis"}-prediction.csv`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 0);
+  }
+
   return <section className="predicted-bracket">
-    <header><div><span>PREDICTED {category.toUpperCase()} DRAW</span><h3>{bracket.champion?.name ?? "No champion"}</h3><p>projected champion · {bracket.size}-slot draw</p></div><div><strong>{bracket.rounds.length}</strong><span>rounds modeled</span></div></header>
+    <header><div><span>PREDICTED {category.toUpperCase()} DRAW</span><h3>{bracket.champion?.name ?? "No champion"}</h3><p>projected champion · {bracket.size}-slot draw</p></div><div className="bracket-head-actions"><div><strong>{bracket.rounds.length}</strong><span>rounds modeled</span></div><button type="button" onClick={exportCsv}>Export CSV ↓</button></div></header>
     <div className="bracket-scroll">{bracket.rounds.map((round) => <section className="round-column" key={round.label}><h4>{round.label}<span>{round.matches.length}</span></h4>{round.matches.map((match) => <article className="bracket-match" key={match.id}>
       <div className={match.winner?.id === match.one?.id ? "winner" : ""}><span>{match.one?.name ?? "BYE"}</span><b>{match.firstProbability === null ? "—" : percent(match.firstProbability)}</b></div>
       <div className={match.winner?.id === match.two?.id ? "winner" : ""}><span>{match.two?.name ?? "BYE"}</span><b>{match.firstProbability === null ? "—" : percent(1 - match.firstProbability)}</b></div>
@@ -454,6 +560,8 @@ interface LiveTournament {
     correct: number;
     wrong: number;
     accuracy: number | null;
+    averageConfidence: number | null;
+    brierScore: number | null;
     trackingSince: string | null;
     lastGradedAt: string | null;
   };
@@ -463,6 +571,13 @@ function roundOrder(label: string) {
   const order = ["Qualifying 1st Round", "Qualifying 2nd Round", "Qualifying", "Round 1", "Round 2", "Round 3", "Round 4", "Quarterfinal", "Semifinal", "Final"];
   const index = order.findIndex((item) => label.includes(item));
   return index < 0 ? 99 : index;
+}
+
+function matchSchedule(startsAt: string | null) {
+  if (!startsAt) return "";
+  const date = new Date(startsAt);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 }
 
 function LiveTourDesk() {
@@ -476,6 +591,7 @@ function LiveTourDesk() {
   const [contextLoading, setContextLoading] = useState("");
   const [refreshVersion, setRefreshVersion] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
+  const [matchFilter, setMatchFilter] = useState<LiveFilter>("all");
 
   useEffect(() => {
     let active = true;
@@ -509,9 +625,12 @@ function LiveTourDesk() {
   const rounds = useMemo(() => {
     if (!selected) return [];
     const grouped = new Map<string, LiveMatch[]>();
-    for (const match of selected.matches) grouped.set(match.round, [...(grouped.get(match.round) ?? []), match]);
+    for (const match of selected.matches) {
+      if (matchFilter !== "all" && match.state !== matchFilter) continue;
+      grouped.set(match.round, [...(grouped.get(match.round) ?? []), match]);
+    }
     return [...grouped.entries()].sort((a, b) => roundOrder(a[0]) - roundOrder(b[0]));
-  }, [selected]);
+  }, [matchFilter, selected]);
 
   async function loadMatchContext(match: LiveMatch) {
     if (!selected || match.players.some((player) => player.name === "TBD")) return;
@@ -547,30 +666,32 @@ function LiveTourDesk() {
     <div className="live-status"><div role="status" aria-live="polite"><i className={error ? "error" : ""} /><strong>{error ? "Feed interrupted" : refreshing ? "Refreshing" : "Auto-refreshing"}</strong><span>{updatedAt ? `Last checked ${new Date(updatedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}` : "Connecting to tour scoreboards"}</span></div><div className="live-status-actions"><span>LIVE RESULTS + MODEL LAYER</span><button type="button" disabled={refreshing} onClick={() => setRefreshVersion((current) => current + 1)}>{refreshing ? "Checking…" : "Refresh now"}</button></div></div>
     {loading ? <div className="live-loading"><i /><strong>Reading today’s ATP and WTA draws…</strong></div> : error && !selected ? <div className="live-loading error"><strong>Live data is temporarily unavailable.</strong><p>{error}</p></div> : selected ? <>
       <div className="event-tabs" role="tablist" aria-label="Active tournaments">{tournaments.map((event) => <button type="button" role="tab" aria-selected={selected.id === event.id} key={event.id} className={selected.id === event.id ? "active" : ""} onClick={() => setSelectedId(event.id)}><span>{event.tour}</span><strong>{event.name}</strong><small>{event.venue}</small></button>)}</div>
-      <div className="live-event-head"><div><span>{selected.tour} · {selected.surface.toUpperCase()} COURT</span><h3>{selected.name}</h3><p>{selected.venue} · actual results are preserved; unplayed matches show model scores and probabilities.</p></div>{selected.bracketLink ? <a href={selected.bracketLink} target="_blank" rel="noreferrer">Official draw ↗</a> : null}</div>
+      <div className="live-event-head"><div><span>{selected.tour} · {selected.surface.toUpperCase()} COURT</span><h3>{selected.name}</h3><p>{selected.venue} · actual results are preserved; unplayed matches show model scores and probabilities.</p></div><div className="live-event-tools"><label>Show<select value={matchFilter} onChange={(event) => setMatchFilter(event.target.value as LiveFilter)}><option value="all">All matches</option><option value="pre">Upcoming forecasts</option><option value="in">In play</option><option value="post">Final results</option></select></label>{selected.bracketLink ? <a href={selected.bracketLink} target="_blank" rel="noreferrer">Official draw ↗</a> : null}</div></div>
       <TournamentAccuracyScorecard tournament={selected} available={scorecardAvailable} />
       <div className="live-bracket-scroll">{rounds.map(([round, matches]) => <section className="live-round" key={round}><h4>{round}<span>{matches.length}</span></h4>{matches.map((match) => {
         const context = matchContexts[match.id];
         const forecast = context ? { winner: context.forecast.projectedWinner, firstProbability: context.forecast.playerOneProbability, score: context.forecast.likelySetScore } : match.forecast;
+        const schedule = matchSchedule(match.startsAt);
         return <article className={`live-match ${match.state}`} key={match.id}>
-          <header><span>{match.state === "post" ? "FINAL" : match.state === "in" ? "IN PLAY" : context ? "CONTEXT FORECAST" : "BASE FORECAST"}</span><small>{match.court || match.status} · BO{match.bestOf}</small></header>
+          <header><span>{match.state === "post" ? "FINAL" : match.state === "in" ? "IN PLAY" : context ? "CONTEXT FORECAST" : "BASE FORECAST"}</span><small>{[match.court || match.status, schedule, `BO${match.bestOf}`].filter(Boolean).join(" · ")}</small></header>
           {match.players.map((player, index) => <div className={player.winner || forecast?.winner === player.name ? "winner" : ""} key={`${match.id}-${player.name}-${index}`}><span>{player.name}</span><b>{match.state === "post" ? player.score : forecast ? percent(index === 0 ? forecast.firstProbability : 1 - forecast.firstProbability) : "—"}</b></div>)}
           <footer>{match.state === "post" ? <span>Actual result</span> : forecast ? <><span>Projected {forecast.score}</span><strong>{forecast.winner}</strong></> : <span>Awaiting prior-round winner</span>}</footer>
           {match.state !== "post" && match.players.every((player) => player.name !== "TBD") ? <button type="button" className="context-match-action" disabled={contextLoading === match.id} aria-busy={contextLoading === match.id} onClick={() => loadMatchContext(match)}>{contextLoading === match.id ? "Reading live context…" : context ? "Refresh injuries + conditions" : "Add injuries + live context"}</button> : null}
           {context ? <LiveContextMini payload={context} /> : null}
         </article>;
-      })}</section>)}</div>
-      <div className="live-disclosure"><strong>How updates work</strong><p>Draws refresh every 60 seconds; weather, travel, availability, coaching, and news signals are retrieved when a context forecast runs. The professional catalogue and model inputs receive a verified daily source review, with automatic production health checks every hour. Finished matches replace forecasts; newly resolved matchups receive fresh posterior simulations. Timing can trail official sources.</p></div>
+      })}</section>)}{rounds.length === 0 ? <div className="live-filter-empty"><strong>No matches in this view.</strong><span>Choose another filter to see the rest of the draw.</span></div> : null}</div>
+      <div className="live-disclosure"><strong>How updates work</strong><p>Draws refresh every 60 seconds; weather, travel, availability, coaching, and news signals are retrieved when a context forecast runs. The professional catalogue and model inputs receive a verified daily source review, with automatic production health checks every hour. Finished matches replace forecasts; newly resolved matchups receive fresh posterior simulations. The scorecard reports both winner accuracy and probability-sensitive Brier score once matches are graded. Timing can trail official sources.</p></div>
     </> : <div className="live-loading"><strong>No ATP or WTA singles tournament was returned for today.</strong></div>}
   </div>;
 }
 
 function TournamentAccuracyScorecard({ tournament, available }: { tournament: LiveTournament; available: boolean }) {
-  const score = tournament.accuracy ?? { captured: 0, pending: 0, graded: 0, correct: 0, wrong: 0, accuracy: null, trackingSince: null, lastGradedAt: null };
+  const score = tournament.accuracy ?? { captured: 0, pending: 0, graded: 0, correct: 0, wrong: 0, accuracy: null, averageConfidence: null, brierScore: null, trackingSince: null, lastGradedAt: null };
   const graded = score.graded > 0;
   return <section className="accuracy-scorecard" aria-label={`${tournament.name} prediction accuracy`}>
     <header><div><span>FORWARD-TEST SCORECARD</span><strong>{!available ? "Reconnecting" : graded ? percent(score.accuracy ?? 0, 1) : "Collecting"}</strong><small>{!available ? "persistent scorecard temporarily unavailable" : graded ? `${score.graded} graded winner picks` : "waiting for frozen picks to finish"}</small></div><div className="accuracy-ring" style={{ "--accuracy": `${Math.round((score.accuracy ?? 0) * 100)}%` } as CSSProperties}><b>{graded ? percent(score.accuracy ?? 0) : "—"}</b></div></header>
     <div className="accuracy-counts"><div><span>Correct</span><strong>{score.correct}</strong></div><div><span>Wrong</span><strong>{score.wrong}</strong></div><div><span>Graded</span><strong>{score.graded}</strong></div><div><span>Still open</span><strong>{score.pending}</strong></div></div>
+    {graded ? <div className="accuracy-quality"><div><span>Average confidence</span><strong>{percent(score.averageConfidence ?? 0, 1)}</strong></div><div><span>Brier score</span><strong>{(score.brierScore ?? 0).toFixed(3)}</strong><small>lower is better</small></div></div> : null}
     <footer><p>Only the first baseline pick captured before a match begins is eligible. Completed matches from before tracking started are never backfilled.</p><small>{score.trackingSince ? `Tracking since ${new Date(score.trackingSince).toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" })}` : "The first eligible pre-match forecast starts the record."}</small></footer>
   </section>;
 }

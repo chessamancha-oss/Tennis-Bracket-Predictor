@@ -26,6 +26,17 @@ export interface ForecastBracket {
   champion: BracketParticipant | null;
 }
 
+export function seedBracketParticipants(participants: BracketParticipant[]) {
+  const ranked = [...participants].sort((first, second) => second.profile.rating - first.profile.rating);
+  const seeded: BracketParticipant[] = [];
+  for (let index = 0; index < Math.ceil(ranked.length / 2); index += 1) {
+    seeded.push(ranked[index]);
+    const opponent = ranked[ranked.length - 1 - index];
+    if (opponent !== ranked[index]) seeded.push(opponent);
+  }
+  return seeded;
+}
+
 function bracketSize(count: number) {
   let size = 2;
   while (size < count) size *= 2;

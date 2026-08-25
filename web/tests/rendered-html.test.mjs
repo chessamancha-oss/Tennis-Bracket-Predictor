@@ -64,6 +64,7 @@ test("ships the scoring model, historical catalogue, bracket engine, live feed, 
   assert.match(liveRoute, /recordAndGradeLivePredictions/);
   assert.match(ledger, /INSERT OR IGNORE INTO live_predictions/);
   assert.match(ledger, /actual_winner IS NULL/);
+  assert.match(ledger, /brier_score/);
   assert.match(contextRoute, /buildMatchContext/);
   assert.match(contextRoute, /applyContextAdjustment/);
   assert.match(contextData, /api\.open-meteo\.com/);

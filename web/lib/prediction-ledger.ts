@@ -9,6 +9,8 @@ interface AccuracyRow {
   pending: number;
   graded: number;
   correct: number;
+  average_confidence: number | null;
+  brier_score: number | null;
   tracking_since: string | null;
   last_graded_at: string | null;
 }
@@ -73,6 +75,10 @@ export async function recordAndGradeLivePredictions(tournaments: LedgerTournamen
            SUM(CASE WHEN actual_winner IS NULL THEN 1 ELSE 0 END) AS pending,
            SUM(CASE WHEN actual_winner IS NOT NULL THEN 1 ELSE 0 END) AS graded,
            SUM(CASE WHEN correct = 1 THEN 1 ELSE 0 END) AS correct,
+           AVG(CASE WHEN actual_winner IS NOT NULL THEN predicted_probability END) AS average_confidence,
+           AVG(CASE WHEN actual_winner IS NOT NULL THEN
+             (predicted_probability - correct) * (predicted_probability - correct)
+           END) AS brier_score,
            MIN(predicted_at) AS tracking_since,
            MAX(resolved_at) AS last_graded_at
     FROM live_predictions
@@ -90,6 +96,8 @@ export async function recordAndGradeLivePredictions(tournaments: LedgerTournamen
       correct,
       wrong: Math.max(0, graded - correct),
       accuracy: graded ? correct / graded : null,
+      averageConfidence: graded ? Number(row.average_confidence) : null,
+      brierScore: graded ? Number(row.brier_score) : null,
       trackingSince: row.tracking_since,
       lastGradedAt: row.last_graded_at,
     };
