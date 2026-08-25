@@ -62,7 +62,7 @@ Every applied factor, source headline, confidence label, and rating/uncertainty 
 - License for historical and derived player aggregates: CC BY-NC-SA 4.0. See `web/data/NOTICE.md`.
 - Live draw layer: ESPN tennis scoreboard, requested on demand and cached briefly. Live timing can trail official tournament sources.
 - Venue geocoding and weather: Open-Meteo, requested on demand. Forecasts can differ from exact on-court conditions or roof state.
-- News discovery: Google News RSS for a three-day availability window and a 45-day coaching-change window. Headlines link to their publishers and are not stored in the player database.
+- News discovery: Google News RSS for a 14-day availability window and a 45-day coaching-change window. Same-day reporting is prioritized, while the longer availability window preserves event withdrawals announced before tournament week. Headlines link to their publishers and are not stored in the player database.
 - Recent travel: inferred from the latest completed ESPN match found in the preceding 21 days, with venue coordinates resolved through Open-Meteo.
 
 Rankings are deliberately newer than the match-history snapshot. The interface discloses both dates rather than implying live point statistics.
