@@ -30,6 +30,33 @@ interface ForecastPayload {
   hourly?: WeatherPoint & { time?: string[] };
 }
 
+interface NwsQuantity {
+  unitCode?: string;
+  value?: number | null;
+}
+
+interface NwsPointPayload {
+  properties?: { observationStations?: string; timeZone?: string };
+}
+
+interface NwsStationPayload {
+  features?: Array<{ properties?: { stationIdentifier?: string } }>;
+}
+
+interface NwsObservationPayload {
+  properties?: {
+    timestamp?: string;
+    temperature?: NwsQuantity;
+    heatIndex?: NwsQuantity;
+    windChill?: NwsQuantity;
+    relativeHumidity?: NwsQuantity;
+    windSpeed?: NwsQuantity;
+    windGust?: NwsQuantity;
+    precipitationLastHour?: NwsQuantity | null;
+    elevation?: NwsQuantity;
+  };
+}
+
 interface WeatherPoint {
   time?: string | string[];
   temperature_2m?: number | number[];
@@ -142,6 +169,18 @@ async function getText(url: string) {
   return response.text();
 }
 
+async function getNwsJson<T>(url: string): Promise<T> {
+  const response = await fetch(url, {
+    headers: {
+      Accept: "application/geo+json",
+      "User-Agent": "BaselineTennisLabs/3.1 (github.com/chessamancha-oss/Tennis-Bracket-Predictor)",
+    },
+    cache: "no-store",
+  });
+  if (!response.ok) throw new Error(`National Weather Service returned ${response.status}`);
+  return response.json() as Promise<T>;
+}
+
 async function geocode(location: string) {
   const candidates = [location, location.split(",")[0]].map((item) => item.trim()).filter(Boolean);
   for (const candidate of candidates) {
@@ -178,9 +217,79 @@ function weatherPoint(payload: ForecastPayload, startsAt?: string | null) {
   return { source: payload.current ?? {}, index: 0, observedAt: currentTime };
 }
 
+function quantityValue(quantity?: NwsQuantity | null) {
+  return typeof quantity?.value === "number" && Number.isFinite(quantity.value) ? quantity.value : null;
+}
+
+function temperatureF(quantity?: NwsQuantity | null) {
+  const value = quantityValue(quantity);
+  if (value === null) return null;
+  if (quantity?.unitCode?.includes("degC")) return value * 9 / 5 + 32;
+  return value;
+}
+
+function windMph(quantity?: NwsQuantity | null) {
+  const value = quantityValue(quantity);
+  if (value === null) return null;
+  if (quantity?.unitCode?.includes("km_h")) return value * 0.621371;
+  if (quantity?.unitCode?.includes("m_s")) return value * 2.23694;
+  return value;
+}
+
+function precipitationIn(quantity?: NwsQuantity | null) {
+  const value = quantityValue(quantity);
+  if (value === null) return 0;
+  if (quantity?.unitCode?.endsWith(":m")) return value * 39.3701;
+  if (quantity?.unitCode?.includes("mm")) return value * 0.0393701;
+  return value;
+}
+
+async function conditionsFromNws(location: GeocodingResult, venue: string): Promise<VenueConditions | null> {
+  if (location.latitude === undefined || location.longitude === undefined) return null;
+  try {
+    const point = await getNwsJson<NwsPointPayload>(`https://api.weather.gov/points/${location.latitude},${location.longitude}`);
+    const stationsUrl = point.properties?.observationStations;
+    if (!stationsUrl?.startsWith("https://api.weather.gov/")) return null;
+    const stations = await getNwsJson<NwsStationPayload>(stationsUrl);
+    const station = stations.features?.[0]?.properties?.stationIdentifier;
+    if (!station) return null;
+    const sourceUrl = `https://api.weather.gov/stations/${encodeURIComponent(station)}/observations/latest?require_qc=true`;
+    const observation = await getNwsJson<NwsObservationPayload>(sourceUrl);
+    const properties = observation.properties;
+    const temperature = temperatureF(properties?.temperature);
+    if (!properties || temperature === null) return null;
+    const apparent = temperatureF(properties.heatIndex) ?? temperatureF(properties.windChill) ?? temperature;
+    const wind = windMph(properties.windSpeed) ?? 0;
+    const gust = windMph(properties.windGust) ?? wind;
+    const precipitation = precipitationIn(properties.precipitationLastHour);
+    return {
+      location: [location.name, location.country].filter(Boolean).join(", ") || venue,
+      latitude: location.latitude,
+      longitude: location.longitude,
+      elevationM: quantityValue(properties.elevation) ?? Number(location.elevation ?? 0),
+      timezone: point.properties?.timeZone ?? location.timezone ?? "UTC",
+      observedAt: properties.timestamp ?? new Date().toISOString(),
+      temperatureF: temperature,
+      apparentTemperatureF: apparent,
+      humidityPercent: quantityValue(properties.relativeHumidity) ?? 0,
+      precipitationIn: precipitation,
+      windMph: wind,
+      gustMph: gust,
+      weatherCode: precipitation > 0 ? 61 : 0,
+      sourceUrl,
+    };
+  } catch {
+    return null;
+  }
+}
+
 export async function conditionsAtVenue(venue: string, startsAt?: string | null): Promise<VenueConditions | null> {
   const location = await geocode(venue);
   if (location?.latitude === undefined || location.longitude === undefined) return null;
+  if (["united states", "united states of america", "usa"].includes(venueKey(location.country ?? ""))) {
+    const nationalWeatherService = await conditionsFromNws(location, venue);
+    if (nationalWeatherService) return nationalWeatherService;
+  }
   const shared = {
     latitude: String(location.latitude),
     longitude: String(location.longitude),

@@ -27,7 +27,7 @@ The repository also retains a tested Python bracket CLI for reproducible batch e
 ### Context intelligence
 
 - Select a current ATP or WTA event for a same-tour professional matchup.
-- Read current or match-hour temperature, humidity, wind, precipitation, and elevation from Open-Meteo.
+- Read current or match-hour temperature, humidity, wind, precipitation, and elevation from the National Weather Service for U.S. venues, with Open-Meteo for global coverage and fallback.
 - Estimate recovery time, recent venue-to-venue travel distance, and time-zone load from the preceding 21-day result window.
 - Discover recent injury, withdrawal, recovery, and coaching-change reporting with direct publisher links.
 - Apply only trusted or independently corroborated adverse availability reporting directionally; a lone unverified headline only widens uncertainty.
