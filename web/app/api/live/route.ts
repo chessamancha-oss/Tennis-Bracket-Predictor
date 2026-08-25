@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { catalogueByNames, fallbackTourProfile, normalizePlayerName } from "../../../lib/player-database";
 import { predictMatch, type PlayerProfile, type Tour } from "../../../lib/model";
+import { emptyTournamentAccuracy, recordAndGradeLivePredictions } from "../../../lib/prediction-ledger";
 
 interface RawCompetitor {
   winner?: boolean;
@@ -162,7 +163,18 @@ export async function GET(request: Request) {
     }
     const nested = await Promise.all(scoreboards.flatMap(([tour, board]) => (board?.events ?? []).map((event) => tournament(event, tour))));
     const tournaments = nested.filter((item) => item !== null);
-    return NextResponse.json({ tournaments, updatedAt: now.toISOString(), refreshSeconds: 60, source: "Live tour scoreboard" }, {
+    let scorecardAvailable = true;
+    let accuracyByTournament = new Map();
+    try {
+      accuracyByTournament = await recordAndGradeLivePredictions(tournaments, now.toISOString());
+    } catch {
+      scorecardAvailable = false;
+    }
+    const tournamentsWithAccuracy = tournaments.map((event) => ({
+      ...event,
+      accuracy: accuracyByTournament.get(event.id) ?? emptyTournamentAccuracy(),
+    }));
+    return NextResponse.json({ tournaments: tournamentsWithAccuracy, updatedAt: now.toISOString(), refreshSeconds: 60, source: "Live tour scoreboard", scorecardAvailable }, {
       headers: { "Cache-Control": "public, max-age=30, s-maxage=45, stale-while-revalidate=120" },
     });
   } catch (error) {

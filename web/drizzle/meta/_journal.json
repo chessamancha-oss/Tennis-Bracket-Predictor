@@ -15,6 +15,13 @@
       "when": 1787601600000,
       "tag": "0001_seed_players",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1787672044217,
+      "tag": "0002_lucky_tinkerer",
+      "breakpoints": true
     }
   ]
 }

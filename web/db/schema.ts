@@ -37,3 +37,24 @@ export const players = sqliteTable("players", {
   index("idx_players_tour_era").on(table.tour, table.careerStart, table.careerEnd),
   index("idx_players_tour_rating").on(table.tour, table.rating),
 ]);
+
+export const livePredictions = sqliteTable("live_predictions", {
+  id: text("id").primaryKey(),
+  tournamentId: text("tournament_id").notNull(),
+  tour: text("tour").notNull(),
+  tournamentName: text("tournament_name").notNull(),
+  round: text("round").notNull(),
+  matchId: text("match_id").notNull(),
+  playerOne: text("player_one").notNull(),
+  playerTwo: text("player_two").notNull(),
+  predictedWinner: text("predicted_winner").notNull(),
+  predictedProbability: real("predicted_probability").notNull(),
+  predictedAt: text("predicted_at").notNull(),
+  startsAt: text("starts_at"),
+  modelVersion: text("model_version").notNull(),
+  actualWinner: text("actual_winner"),
+  correct: integer("correct"),
+  resolvedAt: text("resolved_at"),
+}, (table) => [
+  index("idx_live_predictions_tournament").on(table.tournamentId, table.predictedAt),
+]);

@@ -46,6 +46,8 @@ The repository also retains a tested Python bracket CLI for reproducible batch e
 - Shows completed scores, in-progress match state, unresolved draw slots, and forecasts for known future matchups.
 - Refreshes every 60 seconds so completed results lock into the bracket and newly resolved matchups receive new forecasts.
 - Offers an on-demand contextual recalculation for each known live matchup.
+- Freezes the first eligible baseline pick before play, grades it only after the reported result is final, and shows correct, wrong, pending, and winner-pick accuracy for each active tournament.
+- Never backfills already completed matches, so the scorecard is a forward test rather than a hindsight reconstruction.
 - Currently uses the ESPN tennis scoreboard as the operational live-result layer; official tournament links remain available for verification.
 
 ## Model overview

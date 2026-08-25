@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { playerDatabaseSummary } from "../data/player-database-summary.generated";
 import { professionalPlayers } from "../data/players.generated";
 import { forecastBracket, type BracketParticipant, type ForecastBracket } from "../lib/bracket";
@@ -442,6 +442,16 @@ interface LiveTournament {
   surface: string;
   bracketLink: string | null;
   matches: LiveMatch[];
+  accuracy?: {
+    captured: number;
+    pending: number;
+    graded: number;
+    correct: number;
+    wrong: number;
+    accuracy: number | null;
+    trackingSince: string | null;
+    lastGradedAt: string | null;
+  };
 }
 
 function roundOrder(label: string) {
@@ -456,6 +466,7 @@ function LiveTourDesk() {
   const [updatedAt, setUpdatedAt] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [scorecardAvailable, setScorecardAvailable] = useState(true);
   const [matchContexts, setMatchContexts] = useState<Record<string, ContextPayload>>({});
   const [contextLoading, setContextLoading] = useState("");
 
@@ -464,12 +475,13 @@ function LiveTourDesk() {
     async function refresh() {
       try {
         const response = await fetch("/api/live", { cache: "no-store" });
-        const data = await response.json() as { tournaments?: LiveTournament[]; updatedAt?: string; error?: string };
+        const data = await response.json() as { tournaments?: LiveTournament[]; updatedAt?: string; scorecardAvailable?: boolean; error?: string };
         if (!response.ok) throw new Error(data.error || "Live draw unavailable");
         if (!active) return;
         setTournaments(data.tournaments ?? []);
         setSelectedId((current) => current && data.tournaments?.some((event) => event.id === current) ? current : data.tournaments?.[0]?.id ?? "");
         setUpdatedAt(data.updatedAt ?? new Date().toISOString());
+        setScorecardAvailable(data.scorecardAvailable !== false);
         setError("");
       } catch (caught) {
         if (active) setError(caught instanceof Error ? caught.message : "Live draw unavailable");
@@ -526,6 +538,7 @@ function LiveTourDesk() {
     {loading ? <div className="live-loading"><i /><strong>Reading today’s ATP and WTA draws…</strong></div> : error && !selected ? <div className="live-loading error"><strong>Live data is temporarily unavailable.</strong><p>{error}</p></div> : selected ? <>
       <div className="event-tabs">{tournaments.map((event) => <button key={event.id} className={selected.id === event.id ? "active" : ""} onClick={() => setSelectedId(event.id)}><span>{event.tour}</span><strong>{event.name}</strong><small>{event.venue}</small></button>)}</div>
       <div className="live-event-head"><div><span>{selected.tour} · {selected.surface.toUpperCase()} COURT</span><h3>{selected.name}</h3><p>{selected.venue} · actual results are preserved; unplayed matches show model scores and probabilities.</p></div>{selected.bracketLink ? <a href={selected.bracketLink} target="_blank" rel="noreferrer">Official draw ↗</a> : null}</div>
+      <TournamentAccuracyScorecard tournament={selected} available={scorecardAvailable} />
       <div className="live-bracket-scroll">{rounds.map(([round, matches]) => <section className="live-round" key={round}><h4>{round}<span>{matches.length}</span></h4>{matches.map((match) => {
         const context = matchContexts[match.id];
         const forecast = context ? { winner: context.forecast.projectedWinner, firstProbability: context.forecast.playerOneProbability, score: context.forecast.likelySetScore } : match.forecast;
@@ -540,6 +553,16 @@ function LiveTourDesk() {
       <div className="live-disclosure"><strong>How updates work</strong><p>Draws refresh every 60 seconds; weather, travel, availability, coaching, and news signals are retrieved when a context forecast runs. The professional catalogue and model inputs receive a verified daily source review, with automatic production health checks every hour. Finished matches replace forecasts; newly resolved matchups receive fresh posterior simulations. Timing can trail official sources.</p></div>
     </> : <div className="live-loading"><strong>No ATP or WTA singles tournament was returned for today.</strong></div>}
   </div>;
+}
+
+function TournamentAccuracyScorecard({ tournament, available }: { tournament: LiveTournament; available: boolean }) {
+  const score = tournament.accuracy ?? { captured: 0, pending: 0, graded: 0, correct: 0, wrong: 0, accuracy: null, trackingSince: null, lastGradedAt: null };
+  const graded = score.graded > 0;
+  return <section className="accuracy-scorecard" aria-label={`${tournament.name} prediction accuracy`}>
+    <header><div><span>FORWARD-TEST SCORECARD</span><strong>{!available ? "Reconnecting" : graded ? percent(score.accuracy ?? 0, 1) : "Collecting"}</strong><small>{!available ? "persistent scorecard temporarily unavailable" : graded ? `${score.graded} graded winner picks` : "waiting for frozen picks to finish"}</small></div><div className="accuracy-ring" style={{ "--accuracy": `${Math.round((score.accuracy ?? 0) * 100)}%` } as CSSProperties}><b>{graded ? percent(score.accuracy ?? 0) : "—"}</b></div></header>
+    <div className="accuracy-counts"><div><span>Correct</span><strong>{score.correct}</strong></div><div><span>Wrong</span><strong>{score.wrong}</strong></div><div><span>Graded</span><strong>{score.graded}</strong></div><div><span>Still open</span><strong>{score.pending}</strong></div></div>
+    <footer><p>Only the first baseline pick captured before a match begins is eligible. Completed matches from before tracking started are never backfilled.</p><small>{score.trackingSince ? `Tracking since ${new Date(score.trackingSince).toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" })}` : "The first eligible pre-match forecast starts the record."}</small></footer>
+  </section>;
 }
 
 function LiveContextMini({ payload }: { payload: ContextPayload }) {

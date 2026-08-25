@@ -64,6 +64,7 @@ Every applied factor, source headline, confidence label, and rating/uncertainty 
 - Venue geocoding and weather: National Weather Service observations for U.S. venues, with Open-Meteo for global coverage, match-hour forecasts, and fallback. Conditions can differ from the exact court or roof state.
 - News discovery: Google News RSS for a 14-day availability window and a 45-day coaching-change window. Same-day reporting is prioritized, while the longer availability window preserves event withdrawals announced before tournament week. Headlines link to their publishers and are not stored in the player database.
 - Recent travel: inferred from the latest completed ESPN match found in the preceding 21 days, with venue coordinates resolved through Open-Meteo.
+- Live forward-test ledger: the first baseline winner pick observed while a match is still pre-match is stored with its probability and model version. It is graded only when the same scoreboard match later identifies a final winner. Matches already completed when tracking begins are excluded rather than backfilled.
 
 Rankings are deliberately newer than the match-history snapshot. The interface discloses both dates rather than implying live point statistics.
 
@@ -75,6 +76,10 @@ Rankings are deliberately newer than the match-history snapshot. The interface d
 - Static professional rankings, player aggregates, aliases, and model inputs are reviewed once per America/New_York calendar day and regenerated only from a newer verified source snapshot.
 - Dependencies and published security advisories are reviewed weekly.
 - Automated maintenance never treats a changing timestamp as a data improvement. Material updates must pass the repository's complete test and production-build gate before deployment.
+
+### Live scorecard interpretation
+
+The current-tournament scorecard reports winner-pick accuracy: correct graded picks divided by all graded picks. It also exposes correct, wrong, pending, and total captured counts so a percentage is never shown without its sample size. This metric does not measure probability calibration or compare performance against bookmaker, ranking-only, or Elo-only baselines. Those require the rolling-origin evaluation below.
 
 ## Known limitations
 

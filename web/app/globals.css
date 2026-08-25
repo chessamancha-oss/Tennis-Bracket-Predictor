@@ -348,6 +348,22 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .live-event-head h3 { margin: 7px 0; font-size: 36px; letter-spacing: -.045em; }
 .live-event-head p { margin: 0; color: var(--muted); font-size: 8px; }
 .live-event-head a { color: var(--ink); font-size: 7px; font-weight: 800; text-decoration: none; border-bottom: 1px solid var(--ink); padding-bottom: 3px; }
+.accuracy-scorecard { margin: 0 28px 20px; overflow: hidden; border-radius: 20px; color: white; background: radial-gradient(circle at 88% 15%, rgba(135, 109, 255, .28), transparent 34%), linear-gradient(125deg, #111934, #20285d); box-shadow: 0 18px 38px rgba(12, 18, 41, .16); }
+.accuracy-scorecard > header { padding: 25px 28px 20px; display: flex; justify-content: space-between; align-items: center; gap: 24px; }
+.accuracy-scorecard > header span, .accuracy-scorecard > header strong, .accuracy-scorecard > header small { display: block; }
+.accuracy-scorecard > header span { color: var(--lime); font-size: 7px; font-weight: 900; letter-spacing: .13em; }
+.accuracy-scorecard > header strong { margin-top: 6px; font-size: 35px; letter-spacing: -.05em; }
+.accuracy-scorecard > header small { margin-top: 2px; color: rgba(255, 255, 255, .48); font-size: 7px; text-transform: uppercase; letter-spacing: .08em; }
+.accuracy-ring { --accuracy: 0%; width: 76px; height: 76px; padding: 7px; display: grid; place-items: center; flex: 0 0 auto; border-radius: 50%; background: conic-gradient(var(--lime) var(--accuracy), rgba(255, 255, 255, .12) 0); }
+.accuracy-ring b { width: 100%; height: 100%; display: grid; place-items: center; border-radius: 50%; background: #1b234e; font-size: 13px; }
+.accuracy-counts { padding: 0 10px 10px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.accuracy-counts > div { padding: 15px 17px; border: 1px solid rgba(255, 255, 255, .08); border-radius: 12px; background: rgba(255, 255, 255, .06); }
+.accuracy-counts span, .accuracy-counts strong { display: block; }
+.accuracy-counts span { color: rgba(255, 255, 255, .43); font-size: 6px; text-transform: uppercase; letter-spacing: .1em; }
+.accuracy-counts strong { margin-top: 5px; font-size: 21px; }
+.accuracy-scorecard > footer { padding: 14px 20px; display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 20px; border-top: 1px solid rgba(255, 255, 255, .08); background: rgba(0, 0, 0, .08); }
+.accuracy-scorecard > footer p { margin: 0; max-width: 650px; color: rgba(255, 255, 255, .55); font-size: 7px; line-height: 1.5; }
+.accuracy-scorecard > footer small { color: rgba(255, 255, 255, .72); font-size: 6px; text-transform: uppercase; letter-spacing: .07em; }
 .live-round { flex: 0 0 260px; }
 .live-match { margin-bottom: 10px; overflow: hidden; border: 1px solid var(--line); border-radius: 12px; background: white; box-shadow: 0 5px 14px rgba(16, 22, 42, .04); }
 .live-match > header { padding: 8px 10px; display: flex; justify-content: space-between; border-bottom: 1px solid var(--soft); }
@@ -468,6 +484,9 @@ body > main > footer > div a { color: var(--ink); text-decoration: none; font-si
   .live-status, .live-event-head { align-items: flex-start; flex-direction: column; gap: 14px; }
   .live-status > span { display: none; }
   .event-tabs { margin: 0 14px; }
+  .accuracy-scorecard { margin: 0 14px 18px; }
+  .accuracy-counts { grid-template-columns: 1fr 1fr; }
+  .accuracy-scorecard > footer { grid-template-columns: 1fr; }
   .live-disclosure { margin: 0 14px 18px; grid-template-columns: 1fr; }
   .methodology-clean { margin: 0 10px 10px; padding: 62px 20px; border-radius: 24px; }
   .methodology-clean > header { align-items: flex-start; flex-direction: column; }
