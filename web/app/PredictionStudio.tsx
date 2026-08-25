@@ -99,18 +99,18 @@ export function PredictionStudio() {
           <div className="hero-proof"><span><b>Bayesian</b> uncertainty</span><span><b>Point-level</b> scoring</span><span><b>Source-linked</b> context</span></div>
         </div>
         <div className="hero-model-card" role="img" aria-label="Illustrative model preview showing a 64 to 36 percent tennis forecast">
-          <header><span><i /> MODEL PREVIEW</span><b>HARD · BEST OF 3</b></header>
+          <header><span><i /> MODEL PREVIEW</span><b>ILLUSTRATIVE · HARD · BO3</b></header>
           <div className="hero-matchup">
             <div><small>PLAYER ONE</small><strong>64%</strong><span>Projected edge</span></div>
             <div className="hero-sim"><b>5,040</b><small>score-level<br />simulations</small></div>
             <div><small>PLAYER TWO</small><strong>36%</strong><span>Live posterior</span></div>
           </div>
           <div className="hero-signal-list">
-            <div><span>01</span><strong>Surface fit</strong><i><b style={{ width: "78%" }} /></i><em>+8.2</em></div>
-            <div><span>02</span><strong>Recent form</strong><i><b style={{ width: "61%" }} /></i><em>+3.1</em></div>
-            <div><span>03</span><strong>Match context</strong><i><b style={{ width: "44%" }} /></i><em>live</em></div>
+            <div><span>01</span><strong>Surface posterior</strong><i><b style={{ width: "78%" }} /></i><em>sampled</em></div>
+            <div><span>02</span><strong>Serve + return</strong><i><b style={{ width: "61%" }} /></i><em>Bayesian</em></div>
+            <div><span>03</span><strong>Match context</strong><i><b style={{ width: "44%" }} /></i><em>sourced</em></div>
           </div>
-          <footer><span>Weather</span><b>72°F · 5 mph</b><span>Availability</span><b>Checked</b></footer>
+          <footer><span>Evidence</span><b>Source-linked</b><span>Scoring</span><b>Point by point</b></footer>
         </div>
       </div>
       <div className="signal-strip">
