@@ -104,6 +104,18 @@ python scripts/build_player_database.py \
 
 Before publishing a refresh, independently verify current-ranking constants, update displayed cutoff dates, inspect the generated SQL and summary, run the full test suite, and review the generated diff. Historical and derived player data is CC BY-NC-SA 4.0; see [web/data/NOTICE.md](web/data/NOTICE.md).
 
+## Continuous maintenance cadence
+
+Production uses different cadences for data with different rates of change:
+
+- the browser requests live draw state every 60 seconds;
+- weather, travel, availability, injury, coaching, and news evidence is retrieved when a context forecast runs and is only cached briefly;
+- an hourly maintenance heartbeat checks the production site, draw feed, context pipeline, source timestamps, and upstream response shapes;
+- the first heartbeat each America/New_York calendar day checks the attributed player archive and official ATP/WTA ranking sources for a newer trustworthy snapshot, then regenerates and validates the catalogue only when one exists; and
+- the first Monday heartbeat reviews production dependencies and security advisories, accepting only compatible low-risk changes that pass the complete quality gate.
+
+Healthy feeds do not produce timestamp-only commits. A source or code change reaches production only after its generated diff is reviewed, the full test and build gate passes, and the exact passing commit is deployed.
+
 ## Python bracket CLI
 
 The Python package remains useful for deterministic batch bracket experiments:

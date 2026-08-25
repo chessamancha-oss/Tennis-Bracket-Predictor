@@ -537,7 +537,7 @@ function LiveTourDesk() {
           {context ? <LiveContextMini payload={context} /> : null}
         </article>;
       })}</section>)}</div>
-      <div className="live-disclosure"><strong>How updates work</strong><p>The scoreboard is requested every 60 seconds. Finished matches replace forecasts; newly resolved matchups receive fresh posterior simulations. Timing can trail the official tournament feed.</p></div>
+      <div className="live-disclosure"><strong>How updates work</strong><p>Draws refresh every 60 seconds; weather, travel, availability, coaching, and news signals are retrieved when a context forecast runs. The professional catalogue and model inputs receive a verified daily source review, with automatic production health checks every hour. Finished matches replace forecasts; newly resolved matchups receive fresh posterior simulations. Timing can trail official sources.</p></div>
     </> : <div className="live-loading"><strong>No ATP or WTA singles tournament was returned for today.</strong></div>}
   </div>;
 }
