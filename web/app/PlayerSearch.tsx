@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useState } from "react";
+import { playerDatabaseSummary } from "../data/player-database-summary.generated";
 import type { CataloguePlayer } from "../lib/player-database";
 import type { PlayerProfile, Tour } from "../lib/model";
 
@@ -27,18 +28,21 @@ export function PlayerSearch({ label, selected, onSelect, excludeId, compact = f
   compact?: boolean;
 }) {
   const id = useId();
+  const resultsId = `${id}-results`;
   const [query, setQuery] = useState("");
   const [tour, setTour] = useState<"ALL" | Tour>("ALL");
   const [eraIndex, setEraIndex] = useState(0);
   const [players, setPlayers] = useState<SearchablePlayer[]>([]);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     if (!open) return;
     const controller = new AbortController();
     const timer = window.setTimeout(async () => {
       setLoading(true);
+      setError("");
       const selectedEra = eras[eraIndex];
       const params = new URLSearchParams({ q: query });
       if (tour !== "ALL") params.set("tour", tour);
@@ -46,10 +50,14 @@ export function PlayerSearch({ label, selected, onSelect, excludeId, compact = f
       if (selectedEra.end) params.set("eraEnd", String(selectedEra.end));
       try {
         const response = await fetch(`/api/players?${params}`, { signal: controller.signal });
-        const payload = await response.json() as { players?: SearchablePlayer[] };
+        const payload = await response.json() as { players?: SearchablePlayer[]; error?: string };
+        if (!response.ok) throw new Error(payload.error || "Player archive unavailable");
         setPlayers((payload.players ?? []).filter((player) => player.id !== excludeId));
       } catch (error) {
-        if ((error as Error).name !== "AbortError") setPlayers([]);
+        if ((error as Error).name !== "AbortError") {
+          setPlayers([]);
+          setError(error instanceof Error ? error.message : "Player archive unavailable");
+        }
       } finally {
         setLoading(false);
       }
@@ -71,7 +79,7 @@ export function PlayerSearch({ label, selected, onSelect, excludeId, compact = f
     </div> : null}
     <div className="search-control">
       <span aria-hidden="true">⌕</span>
-      <input id={id} value={query} onFocus={() => setOpen(true)} onChange={(event) => { setQuery(event.target.value); setOpen(true); }} placeholder={compact ? "Search 7,255 players…" : "Search any current or historical player…"} autoComplete="off" />
+      <input id={id} role="combobox" aria-autocomplete="list" aria-expanded={open} aria-controls={resultsId} value={query} onFocus={() => setOpen(true)} onKeyDown={(event) => { if (event.key === "Escape") setOpen(false); }} onChange={(event) => { setQuery(event.target.value); setOpen(true); }} placeholder={compact ? `Search ${playerDatabaseSummary.count.toLocaleString()} players…` : "Search any current or historical player…"} autoComplete="off" />
       {open ? <button type="button" onClick={() => setOpen(false)} aria-label="Close player search">×</button> : null}
     </div>
     {open ? <div className="search-popover">
@@ -79,14 +87,14 @@ export function PlayerSearch({ label, selected, onSelect, excludeId, compact = f
         <div>{(["ALL", "ATP", "WTA"] as const).map((item) => <button type="button" key={item} className={tour === item ? "active" : ""} onClick={() => setTour(item)}>{item}</button>)}</div>
         <select aria-label="Player era" value={eraIndex} onChange={(event) => setEraIndex(Number(event.target.value))}>{eras.map((item, index) => <option value={index} key={item.label}>{item.label}</option>)}</select>
       </div>
-      <div className="search-results" role="listbox" aria-label={`${label} results`}>
-        {loading ? <p className="search-state">Searching the archive…</p> : players.length ? players.map((player) => <button type="button" role="option" aria-selected={false} key={player.id} onClick={() => choose(player)}>
+      <div className="search-results" id={resultsId} role="listbox" aria-label={`${label} results`} aria-live="polite">
+        {loading ? <p className="search-state">Searching the archive…</p> : error ? <p className="search-state search-error">Player search is temporarily unavailable. Please try again.</p> : players.length ? players.map((player) => <button type="button" role="option" aria-selected={selected?.id === player.id} key={player.id} onClick={() => choose(player)}>
           <span className="result-monogram">{player.name.split(" ").slice(0, 2).map((part) => part[0]).join("")}</span>
           <span><strong>{player.name}</strong><small>{player.tour} · {player.country} · {era(player)}</small></span>
           <span><b>{Math.round(player.rating)}</b><small>{player.majorTitles ? `${player.majorTitles} majors` : player.rank ? `No. ${player.rank}` : "peak"}</small></span>
         </button>) : <p className="search-state">No player found. Try a surname or a different era.</p>}
       </div>
-      <div className="search-source"><i /> Career-peak profiles for retired players · current priors for active players</div>
+      <div className="search-source"><i /> {playerDatabaseSummary.count.toLocaleString()} indexed profiles · career peaks for retired players · current priors for active players</div>
     </div> : null}
   </div>;
 }

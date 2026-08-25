@@ -75,12 +75,13 @@ export function PredictionStudio() {
   const [view, setView] = useState<ProductView>("match");
 
   return <main>
+    <a className="skip-link" href="#workspace">Skip to forecast workspace</a>
     <header className="site-nav" id="top">
       <a className="brand" href="#top" aria-label="Baseline Labs home"><span className="brand-dot" /><span>BASELINE</span><b>LABS</b></a>
       <nav aria-label="Product navigation">
-        <button className={view === "match" ? "active" : ""} onClick={() => setView("match")}>Matchup</button>
-        <button className={view === "bracket" ? "active" : ""} onClick={() => setView("bracket")}>Bracket builder</button>
-        <button className={view === "live" ? "active" : ""} onClick={() => setView("live")}><i /> Live draws</button>
+        <button type="button" aria-pressed={view === "match"} className={view === "match" ? "active" : ""} onClick={() => setView("match")}>Matchup</button>
+        <button type="button" aria-pressed={view === "bracket"} className={view === "bracket" ? "active" : ""} onClick={() => setView("bracket")}>Bracket builder</button>
+        <button type="button" aria-pressed={view === "live"} className={view === "live" ? "active" : ""} onClick={() => setView("live")}><i /> Live draws</button>
       </nav>
       <a className="method-link" href="#method">Model notes</a>
     </header>
@@ -93,8 +94,8 @@ export function PredictionStudio() {
           <h1>Every match has a hidden shape.</h1>
           <p>See it before the first serve. Compare any era, add current conditions and availability, then simulate one matchup or an entire draw.</p>
           <div className="hero-actions">
-            <button onClick={() => { setView("match"); document.getElementById("workspace")?.scrollIntoView({ behavior: "smooth" }); }}>Open match lab <span>↗</span></button>
-            <button className="secondary" onClick={() => { setView("live"); document.getElementById("workspace")?.scrollIntoView({ behavior: "smooth" }); }}>Explore live draws</button>
+            <button type="button" onClick={() => { setView("match"); document.getElementById("workspace")?.scrollIntoView({ behavior: "smooth" }); }}>Open match lab <span>↗</span></button>
+            <button type="button" className="secondary" onClick={() => { setView("live"); document.getElementById("workspace")?.scrollIntoView({ behavior: "smooth" }); }}>Explore live draws</button>
           </div>
           <div className="hero-proof"><span><b>Bayesian</b> uncertainty</span><span><b>Point-level</b> scoring</span><span><b>Source-linked</b> context</span></div>
         </div>
@@ -123,11 +124,13 @@ export function PredictionStudio() {
 
     <section className="product-shell" id="workspace">
       <div className="workspace-tabs" role="tablist" aria-label="Forecast workspace">
-        <button role="tab" aria-selected={view === "match"} className={view === "match" ? "active" : ""} onClick={() => setView("match")}><span>01</span><strong>Matchup forecast</strong><small>Any player, any era</small></button>
-        <button role="tab" aria-selected={view === "bracket"} className={view === "bracket" ? "active" : ""} onClick={() => setView("bracket")}><span>02</span><strong>Tournament builder</strong><small>Unlimited custom fields</small></button>
-        <button role="tab" aria-selected={view === "live"} className={view === "live" ? "active" : ""} onClick={() => setView("live")}><span>03</span><strong>Live tour desk</strong><small>Draw-aware forecasts</small></button>
+        <button type="button" id="workspace-tab-match" role="tab" aria-controls="forecast-workspace-panel" aria-selected={view === "match"} className={view === "match" ? "active" : ""} onClick={() => setView("match")}><span>01</span><strong>Matchup forecast</strong><small>Any player, any era</small></button>
+        <button type="button" id="workspace-tab-bracket" role="tab" aria-controls="forecast-workspace-panel" aria-selected={view === "bracket"} className={view === "bracket" ? "active" : ""} onClick={() => setView("bracket")}><span>02</span><strong>Tournament builder</strong><small>Unlimited custom fields</small></button>
+        <button type="button" id="workspace-tab-live" role="tab" aria-controls="forecast-workspace-panel" aria-selected={view === "live"} className={view === "live" ? "active" : ""} onClick={() => setView("live")}><span>03</span><strong>Live tour desk</strong><small>Draw-aware forecasts</small></button>
       </div>
-      {view === "match" ? <MatchLab /> : view === "bracket" ? <BracketLab /> : <LiveTourDesk />}
+      <div id="forecast-workspace-panel" role="tabpanel" aria-labelledby={`workspace-tab-${view}`} tabIndex={0}>
+        {view === "match" ? <MatchLab /> : view === "bracket" ? <BracketLab /> : <LiveTourDesk />}
+      </div>
     </section>
 
     <Methodology />
@@ -218,9 +221,9 @@ function MatchLab() {
 
   return <div className="lab-panel">
     <header className="panel-heading"><div><span>01 / HEAD TO HEAD</span><h2>Build one matchup.</h2></div><p>Use current or career-peak professional priors, or enter raw model inputs without a fixed scoring scale.</p></header>
-    <div className="submode-switch">
-      <button className={mode === "professional" ? "active" : ""} onClick={() => { setMode("professional"); setResult(null); setContextPayload(null); }}><strong>Professional library</strong><small>Search every indexed era</small></button>
-      <button className={mode === "custom" ? "active" : ""} onClick={() => { setMode("custom"); setResult(null); setContextPayload(null); }}><strong>Unrestricted profile</strong><small>Direct statistical inputs</small></button>
+    <div className="submode-switch" role="group" aria-label="Player input mode">
+      <button type="button" aria-pressed={mode === "professional"} className={mode === "professional" ? "active" : ""} onClick={() => { setMode("professional"); setResult(null); setContextPayload(null); }}><strong>Professional library</strong><small>Search every indexed era</small></button>
+      <button type="button" aria-pressed={mode === "custom"} className={mode === "custom" ? "active" : ""} onClick={() => { setMode("custom"); setResult(null); setContextPayload(null); }}><strong>Unrestricted profile</strong><small>Direct statistical inputs</small></button>
     </div>
 
     {mode === "professional" ? <div className="versus-card">
@@ -291,7 +294,7 @@ function AdvancedBuilder({ active, names, inputs, onActive, onName, onInput }: {
 }) {
   return <div className="advanced-builder">
     <div className="advanced-intro"><div><span>OPEN-ENDED INPUT MODEL</span><h3>No 1–10 ceiling.</h3></div><p>Enter raw ratings, percentages, evidence volume, and signed indices. Inputs accept decimals and values outside typical tour ranges; the probability engine keeps extreme values stable.</p></div>
-    <div className="profile-tabs">{(["one", "two"] as Side[]).map((side, index) => <button key={side} className={active === side ? "active" : ""} onClick={() => onActive(side)}><span>PLAYER {index + 1}</span><strong>{names[side] || `Player ${index + 1}`}</strong><small>{Math.round(inputs[side].rating)} rating</small></button>)}</div>
+    <div className="profile-tabs" role="group" aria-label="Custom player profile">{(["one", "two"] as Side[]).map((side, index) => <button type="button" aria-pressed={active === side} key={side} className={active === side ? "active" : ""} onClick={() => onActive(side)}><span>PLAYER {index + 1}</span><strong>{names[side] || `Player ${index + 1}`}</strong><small>{Math.round(inputs[side].rating)} rating</small></button>)}</div>
     <div className="name-field"><label htmlFor="advanced-name">Player name</label><input id="advanced-name" value={names[active]} onChange={(event) => onName(active, event.target.value)} /><span>Numbers are interpreted below as you enter them.</span></div>
     <div className="advanced-grid">{advancedFields.map((field) => <label className="metric-field" key={field.key}>
       <span>{field.label}<small>{field.unit}</small></span>
@@ -302,29 +305,30 @@ function AdvancedBuilder({ active, names, inputs, onActive, onName, onInput }: {
   </div>;
 }
 
-function ForecastControls({ surface, bestOf, running, onSurface, onBestOf, onRun, label }: {
+function ForecastControls({ surface, bestOf, running, disabled = false, onSurface, onBestOf, onRun, label }: {
   surface: Surface;
   bestOf: 3 | 5;
   running: boolean;
+  disabled?: boolean;
   onSurface: (surface: Surface) => void;
   onBestOf: (bestOf: 3 | 5) => void;
   onRun: () => void;
   label: string;
 }) {
   return <div className="forecast-controls">
-    <div><span className="control-label">Surface</span><div className="choice-row">{(["hard", "clay", "grass"] as Surface[]).map((item) => <button className={surface === item ? "active" : ""} key={item} onClick={() => onSurface(item)}><i className={item} />{surfaceLabels[item]}</button>)}</div></div>
-    <div><span className="control-label">Match format</span><div className="choice-row">{([3, 5] as const).map((item) => <button className={bestOf === item ? "active" : ""} key={item} onClick={() => onBestOf(item)}>Best of {item}</button>)}</div></div>
-    <button className="primary-action" onClick={onRun} disabled={running}>{running ? "Simulating…" : label}<span>{running ? "◌" : "↗"}</span></button>
+    <div role="group" aria-label="Court surface"><span className="control-label">Surface</span><div className="choice-row">{(["hard", "clay", "grass"] as Surface[]).map((item) => <button type="button" aria-pressed={surface === item} className={surface === item ? "active" : ""} key={item} onClick={() => onSurface(item)}><i className={item} />{surfaceLabels[item]}</button>)}</div></div>
+    <div role="group" aria-label="Match format"><span className="control-label">Match format</span><div className="choice-row">{([3, 5] as const).map((item) => <button type="button" aria-pressed={bestOf === item} className={bestOf === item ? "active" : ""} key={item} onClick={() => onBestOf(item)}>Best of {item}</button>)}</div></div>
+    <button type="button" className="primary-action" onClick={onRun} disabled={running || disabled} aria-busy={running}>{running ? "Simulating…" : label}<span aria-hidden="true">{running ? "◌" : "↗"}</span></button>
   </div>;
 }
 
 function ForecastPanel({ result, one, two, surface }: { result: PredictionResult | null; one: PlayerProfile; two: PlayerProfile; surface: Surface }) {
-  if (!result) return <div className="forecast-waiting" id="match-forecast"><span>MODEL OUTPUT</span><strong>Ready when you are.</strong><p>Run the forecast to sample latent ability and play the score point by point.</p></div>;
+  if (!result) return <div className="forecast-waiting" id="match-forecast" aria-live="polite"><span>MODEL OUTPUT</span><strong>Ready when you are.</strong><p>Run the forecast to sample latent ability and play the score point by point.</p></div>;
   const winnerIsOne = result.projectedWinner === one.name;
   const winProbability = winnerIsOne ? result.playerOneProbability : result.playerTwoProbability;
   const low = winnerIsOne ? result.intervalLow : 1 - result.intervalHigh;
   const high = winnerIsOne ? result.intervalHigh : 1 - result.intervalLow;
-  return <section className="forecast-result" id="match-forecast">
+  return <section className="forecast-result" id="match-forecast" aria-live="polite">
     <div className="result-hero"><div><span>PROJECTED WINNER · {surfaceLabels[surface].toUpperCase()}</span><h3>{result.projectedWinner}</h3><p>{percent(low)}–{percent(high)} posterior interval · {result.confidence.toLowerCase()} evidence</p></div><strong>{percent(winProbability)}</strong></div>
     <div className="split-meter"><i style={{ width: `${result.playerOneProbability * 100}%` }} /><span>{one.name} · {percent(result.playerOneProbability)}</span><span>{percent(result.playerTwoProbability)} · {two.name}</span></div>
     <div className="result-stats"><div><span>Likely score</span><strong>{result.likelySetScore}</strong></div><div><span>Expected sets</span><strong>{result.expectedSets.toFixed(2)}</strong></div><div><span>Tiebreak chance</span><strong>{percent(result.tieBreakChance)}</strong></div><div><span>Expected games</span><strong>{result.expectedGames.toFixed(1)}</strong></div></div>
@@ -397,14 +401,14 @@ function BracketLab() {
       <aside className="roster-panel">
         <div className="roster-head"><div><span>FIELD</span><strong>{participants.length} entrants</strong></div><small>No fixed participant cap</small></div>
         <PlayerSearch compact label="Add professional" onSelect={addPlayer} />
-        <div className="quick-add"><input value={newName} onChange={(event) => setNewName(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") addNamed(); }} placeholder="Add a custom entrant" /><button onClick={addNamed}>Add</button></div>
-        <button className="paste-toggle" onClick={() => setPasteOpen((current) => !current)}>{pasteOpen ? "Close roster import" : "Paste a full roster"} <span>↘</span></button>
-        {pasteOpen ? <div className="roster-import"><textarea value={rosterText} onChange={(event) => setRosterText(event.target.value)} placeholder={'One player per line\nRoger Federer\nSerena Williams\n...'} /><button onClick={importRoster}>Replace field from list</button></div> : null}
-        <div className="roster-list">{participants.map((participant, index) => <div key={participant.id} className="roster-row"><span>{String(index + 1).padStart(2, "0")}</span><input value={participant.name} onChange={(event) => updateParticipant(index, "name", event.target.value)} aria-label={`Entrant ${index + 1} name`} /><label><input type="number" step="any" value={Math.round(participant.profile.rating)} onChange={(event) => updateParticipant(index, "rating", event.target.value)} aria-label={`${participant.name} rating`} /><small>Elo</small></label><button onClick={() => { setParticipants((current) => current.filter((_, itemIndex) => itemIndex !== index)); setResult(null); }} aria-label={`Remove ${participant.name}`}>×</button></div>)}</div>
+        <div className="quick-add"><input aria-label="Custom entrant name" value={newName} onChange={(event) => setNewName(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") addNamed(); }} placeholder="Add a custom entrant" /><button type="button" onClick={addNamed}>Add</button></div>
+        <button type="button" className="paste-toggle" aria-expanded={pasteOpen} aria-controls="roster-import" onClick={() => setPasteOpen((current) => !current)}>{pasteOpen ? "Close roster import" : "Paste a full roster"} <span aria-hidden="true">↘</span></button>
+        {pasteOpen ? <div className="roster-import" id="roster-import"><textarea aria-label="Roster names" value={rosterText} onChange={(event) => setRosterText(event.target.value)} placeholder={'One player per line\nRoger Federer\nSerena Williams\n...'} /><button type="button" onClick={importRoster}>Replace field from list</button></div> : null}
+        <div className="roster-list" aria-live="polite">{participants.map((participant, index) => <div key={participant.id} className="roster-row"><span>{String(index + 1).padStart(2, "0")}</span><input value={participant.name} onChange={(event) => updateParticipant(index, "name", event.target.value)} aria-label={`Entrant ${index + 1} name`} /><label><input type="number" step="any" value={Math.round(participant.profile.rating)} onChange={(event) => updateParticipant(index, "rating", event.target.value)} aria-label={`${participant.name} rating`} /><small>Elo</small></label><button type="button" onClick={() => { setParticipants((current) => current.filter((_, itemIndex) => itemIndex !== index)); setResult(null); }} aria-label={`Remove ${participant.name}`}>×</button></div>)}</div>
       </aside>
       <div className="tournament-setup">
-        <div className="setup-grid"><label>Tournament type<select value={category} onChange={(event) => { const value = event.target.value; setCategory(value); if (value === "Grand Slam") setBestOf(5); else setBestOf(3); setResult(null); }}><option>Grand Slam</option><option>Tour 1000</option><option>Tour 500</option><option>Tour 250</option><option>Exhibition</option><option>Custom event</option></select></label><div className="setup-label">Draw behavior<strong>Single elimination + automatic byes</strong></div></div>
-        <ForecastControls surface={surface} bestOf={bestOf} running={running} onSurface={(value) => { setSurface(value); setResult(null); }} onBestOf={(value) => { setBestOf(value); setResult(null); }} onRun={runBracket} label={`Predict ${participants.length}-player bracket`} />
+        <div className="setup-grid"><label>Tournament type<select value={category} onChange={(event) => { setCategory(event.target.value); setResult(null); }}><option>Grand Slam</option><option>Tour 1000</option><option>Tour 500</option><option>Tour 250</option><option>Exhibition</option><option>Custom event</option></select></label><div className="setup-label">Draw behavior<strong>Single elimination + automatic byes</strong><small>Choose best-of-three or best-of-five explicitly below.</small></div></div>
+        <ForecastControls surface={surface} bestOf={bestOf} running={running} disabled={participants.length < 2} onSurface={(value) => { setSurface(value); setResult(null); }} onBestOf={(value) => { setBestOf(value); setResult(null); }} onRun={runBracket} label={participants.length < 2 ? "Add at least two entrants" : `Predict ${participants.length}-player bracket`} />
         {result ? <PredictedBracket bracket={result} category={category} /> : <div className="bracket-empty"><span>BRACKET PREVIEW</span><h3>Your predicted path will appear here.</h3><p>Entrants are paired in listed draw order. Add, remove, paste, or edit as many entries as you need.</p></div>}
       </div>
     </div>
@@ -426,6 +430,7 @@ interface LiveMatch {
   id: string;
   round: string;
   roundId: number;
+  bestOf: 3 | 5;
   startsAt: string | null;
   court: string | null;
   state: string;
@@ -469,10 +474,13 @@ function LiveTourDesk() {
   const [scorecardAvailable, setScorecardAvailable] = useState(true);
   const [matchContexts, setMatchContexts] = useState<Record<string, ContextPayload>>({});
   const [contextLoading, setContextLoading] = useState("");
+  const [refreshVersion, setRefreshVersion] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     let active = true;
     async function refresh() {
+      if (active) setRefreshing(true);
       try {
         const response = await fetch("/api/live", { cache: "no-store" });
         const data = await response.json() as { tournaments?: LiveTournament[]; updatedAt?: string; scorecardAvailable?: boolean; error?: string };
@@ -486,13 +494,16 @@ function LiveTourDesk() {
       } catch (caught) {
         if (active) setError(caught instanceof Error ? caught.message : "Live draw unavailable");
       } finally {
-        if (active) setLoading(false);
+        if (active) {
+          setLoading(false);
+          setRefreshing(false);
+        }
       }
     }
     refresh();
     const timer = window.setInterval(refresh, 60_000);
     return () => { active = false; window.clearInterval(timer); };
-  }, []);
+  }, [refreshVersion]);
 
   const selected = tournaments.find((event) => event.id === selectedId) ?? tournaments[0];
   const rounds = useMemo(() => {
@@ -507,7 +518,6 @@ function LiveTourDesk() {
     setContextLoading(match.id);
     try {
       const surface = selected.surface.toLowerCase() === "clay" || selected.surface.toLowerCase() === "grass" ? selected.surface.toLowerCase() : "hard";
-      const bestOf = selected.tour === "ATP" && selected.name.toLowerCase().includes("open") && !match.round.toLowerCase().includes("qualifying") && selected.name.toLowerCase().includes("us") ? 5 : 3;
       const response = await fetch("/api/context", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -516,7 +526,7 @@ function LiveTourDesk() {
           playerTwo: match.players[1].name,
           tour: selected.tour,
           surface,
-          bestOf,
+          bestOf: match.bestOf,
           eventName: selected.name,
           venue: selected.venue,
           startsAt: match.startsAt,
@@ -534,19 +544,19 @@ function LiveTourDesk() {
 
   return <div className="lab-panel live-panel">
     <header className="panel-heading"><div><span>03 / LIVE TOUR DESK</span><h2>The draw, still moving.</h2></div><p>Completed results lock into the bracket. Known future matchups are re-forecast from the latest field every sixty seconds.</p></header>
-    <div className="live-status"><div><i className={error ? "error" : ""} /><strong>{error ? "Feed interrupted" : "Auto-refreshing"}</strong><span>{updatedAt ? `Last checked ${new Date(updatedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}` : "Connecting to tour scoreboards"}</span></div><span>LIVE RESULTS + MODEL LAYER</span></div>
+    <div className="live-status"><div role="status" aria-live="polite"><i className={error ? "error" : ""} /><strong>{error ? "Feed interrupted" : refreshing ? "Refreshing" : "Auto-refreshing"}</strong><span>{updatedAt ? `Last checked ${new Date(updatedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}` : "Connecting to tour scoreboards"}</span></div><div className="live-status-actions"><span>LIVE RESULTS + MODEL LAYER</span><button type="button" disabled={refreshing} onClick={() => setRefreshVersion((current) => current + 1)}>{refreshing ? "Checking…" : "Refresh now"}</button></div></div>
     {loading ? <div className="live-loading"><i /><strong>Reading today’s ATP and WTA draws…</strong></div> : error && !selected ? <div className="live-loading error"><strong>Live data is temporarily unavailable.</strong><p>{error}</p></div> : selected ? <>
-      <div className="event-tabs">{tournaments.map((event) => <button key={event.id} className={selected.id === event.id ? "active" : ""} onClick={() => setSelectedId(event.id)}><span>{event.tour}</span><strong>{event.name}</strong><small>{event.venue}</small></button>)}</div>
+      <div className="event-tabs" role="tablist" aria-label="Active tournaments">{tournaments.map((event) => <button type="button" role="tab" aria-selected={selected.id === event.id} key={event.id} className={selected.id === event.id ? "active" : ""} onClick={() => setSelectedId(event.id)}><span>{event.tour}</span><strong>{event.name}</strong><small>{event.venue}</small></button>)}</div>
       <div className="live-event-head"><div><span>{selected.tour} · {selected.surface.toUpperCase()} COURT</span><h3>{selected.name}</h3><p>{selected.venue} · actual results are preserved; unplayed matches show model scores and probabilities.</p></div>{selected.bracketLink ? <a href={selected.bracketLink} target="_blank" rel="noreferrer">Official draw ↗</a> : null}</div>
       <TournamentAccuracyScorecard tournament={selected} available={scorecardAvailable} />
       <div className="live-bracket-scroll">{rounds.map(([round, matches]) => <section className="live-round" key={round}><h4>{round}<span>{matches.length}</span></h4>{matches.map((match) => {
         const context = matchContexts[match.id];
         const forecast = context ? { winner: context.forecast.projectedWinner, firstProbability: context.forecast.playerOneProbability, score: context.forecast.likelySetScore } : match.forecast;
         return <article className={`live-match ${match.state}`} key={match.id}>
-          <header><span>{match.state === "post" ? "FINAL" : match.state === "in" ? "IN PLAY" : context ? "CONTEXT FORECAST" : "BASE FORECAST"}</span><small>{match.court || match.status}</small></header>
+          <header><span>{match.state === "post" ? "FINAL" : match.state === "in" ? "IN PLAY" : context ? "CONTEXT FORECAST" : "BASE FORECAST"}</span><small>{match.court || match.status} · BO{match.bestOf}</small></header>
           {match.players.map((player, index) => <div className={player.winner || forecast?.winner === player.name ? "winner" : ""} key={`${match.id}-${player.name}-${index}`}><span>{player.name}</span><b>{match.state === "post" ? player.score : forecast ? percent(index === 0 ? forecast.firstProbability : 1 - forecast.firstProbability) : "—"}</b></div>)}
           <footer>{match.state === "post" ? <span>Actual result</span> : forecast ? <><span>Projected {forecast.score}</span><strong>{forecast.winner}</strong></> : <span>Awaiting prior-round winner</span>}</footer>
-          {match.state !== "post" && match.players.every((player) => player.name !== "TBD") ? <button className="context-match-action" disabled={contextLoading === match.id} onClick={() => loadMatchContext(match)}>{contextLoading === match.id ? "Reading live context…" : context ? "Refresh injuries + conditions" : "Add injuries + live context"}</button> : null}
+          {match.state !== "post" && match.players.every((player) => player.name !== "TBD") ? <button type="button" className="context-match-action" disabled={contextLoading === match.id} aria-busy={contextLoading === match.id} onClick={() => loadMatchContext(match)}>{contextLoading === match.id ? "Reading live context…" : context ? "Refresh injuries + conditions" : "Add injuries + live context"}</button> : null}
           {context ? <LiveContextMini payload={context} /> : null}
         </article>;
       })}</section>)}</div>

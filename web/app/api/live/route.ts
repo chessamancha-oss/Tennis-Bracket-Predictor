@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { inferMatchFormat, inferTourSurface } from "../../../lib/live-rules";
 import { catalogueByNames, fallbackTourProfile, normalizePlayerName } from "../../../lib/player-database";
 import { predictMatch, type PlayerProfile, type Tour } from "../../../lib/model";
 import { emptyTournamentAccuracy, recordAndGradeLivePredictions } from "../../../lib/prediction-ledger";
@@ -53,15 +54,6 @@ function score(competitor: RawCompetitor) {
   }).join(" ");
 }
 
-function inferSurface(event: RawEvent): "hard" | "clay" | "grass" {
-  const description = `${event.name ?? ""} ${event.venue?.displayName ?? ""}`.toLowerCase();
-  const grassEvents = ["wimbledon", "queen's", "queens", "halle", "eastbourne", "nottingham", "bad homburg", "mallorca", "s-hertogenbosch"];
-  const clayEvents = ["roland garros", "french open", "monte-carlo", "monte carlo", "madrid", "rome", "internazionali bnl", "barcelona", "hamburg", "munich", "bastad", "gstaad", "umag", "kitzbuhel", "kitzbühel", "stuttgart"];
-  if (grassEvents.some((name) => description.includes(name))) return "grass";
-  if (clayEvents.some((name) => description.includes(name))) return "clay";
-  return "hard";
-}
-
 async function tournament(event: RawEvent, tour: Tour) {
   const desiredGrouping = tour === "ATP" ? "mens-singles" : "womens-singles";
   const singles = (event.groupings ?? []).find((group) => group.grouping?.slug === desiredGrouping);
@@ -73,7 +65,7 @@ async function tournament(event: RawEvent, tour: Tour) {
   } catch {
     // A live scoreboard remains useful while the local/deployed catalogue initializes.
   }
-  const surface = inferSurface(event);
+  const surface = inferTourSurface(event.name ?? "", event.venue?.displayName ?? "", tour);
   const matches = singles.competitions.map((match) => {
     const competitors = [...(match.competitors ?? [])].sort((a, b) => Number(Boolean(b.winner)) - Number(Boolean(a.winner)));
     const first = competitors[0];
@@ -81,11 +73,13 @@ async function tournament(event: RawEvent, tour: Tour) {
     const firstName = first ? competitorName(first) : "TBD";
     const secondName = second ? competitorName(second) : "TBD";
     const state = match.status?.type?.state ?? "pre";
+    const round = match.round?.displayName ?? "Draw";
+    const bestOf = inferMatchFormat(event.name ?? "", round, tour);
     let forecast = null;
     if (state !== "post" && firstName !== "TBD" && secondName !== "TBD") {
       const firstProfile = catalogue.get(normalizePlayerName(firstName)) ?? fallbackTourProfile(firstName, tour, first?.curatedRank?.current);
       const secondProfile = catalogue.get(normalizePlayerName(secondName)) ?? fallbackTourProfile(secondName, tour, second?.curatedRank?.current);
-      const result = predictMatch(firstProfile, secondProfile, surface, 3, 540, 18);
+      const result = predictMatch(firstProfile, secondProfile, surface, bestOf, 540, 18);
       forecast = {
         winner: result.projectedWinner,
         firstProbability: result.playerOneProbability,
@@ -95,8 +89,9 @@ async function tournament(event: RawEvent, tour: Tour) {
     }
     return {
       id: match.id ?? `${firstName}-${secondName}`,
-      round: match.round?.displayName ?? "Draw",
+      round,
       roundId: Number(match.round?.id ?? 0),
+      bestOf,
       startsAt: match.date ?? null,
       court: match.venue?.court || null,
       state,
@@ -126,7 +121,7 @@ function tournamentSummary(event: RawEvent, tour: Tour) {
   const desiredGrouping = tour === "ATP" ? "mens-singles" : "womens-singles";
   const singles = (event.groupings ?? []).find((group) => group.grouping?.slug === desiredGrouping);
   if (!singles?.competitions?.length) return null;
-  const surface = inferSurface(event);
+  const surface = inferTourSurface(event.name ?? "", event.venue?.displayName ?? "", tour);
   return {
     id: `${tour}-${event.id ?? event.name}`,
     tour,

@@ -1,10 +1,13 @@
 import type { Metadata, Viewport } from "next";
+import { playerDatabaseSummary } from "../data/player-database-summary.generated";
 import "./globals.css";
+
+const catalogueCount = playerDatabaseSummary.count.toLocaleString("en-US");
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://baseline-tennis-labs.sorakabeta.chatgpt.site"),
   title: "Baseline Labs — Serious Tennis Forecasting",
-  description: "Compare 7,255 players across eras with injuries, travel, weather, coaching reports, custom brackets, and live tournament forecasts.",
+  description: `Compare ${catalogueCount} players across eras with injuries, travel, weather, coaching reports, custom brackets, and live tournament forecasts.`,
   icons: { icon: "/favicon.svg", shortcut: "/favicon.svg" },
   openGraph: {
     title: "Baseline Labs — Every Match Has a Hidden Shape.",
@@ -15,7 +18,7 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "Baseline Labs — Every Match Has a Hidden Shape.",
-    description: "Search 7,255 players and add current injuries, travel, conditions, coaching reports, brackets, and live tour probabilities.",
+    description: `Search ${catalogueCount} players and add current injuries, travel, conditions, coaching reports, brackets, and live tour probabilities.`,
     images: ["/og-baseline-labs-v2.png"],
   },
 };
