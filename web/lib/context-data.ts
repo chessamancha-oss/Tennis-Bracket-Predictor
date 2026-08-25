@@ -341,7 +341,7 @@ async function relevantNews(players: PlayerProfile[], eventName: string) {
   };
   try {
     const [statusArticles, coachingArticles] = await Promise.all([
-      search(`(${names}) tennis (injury OR injured OR illness OR withdrawal OR withdrew OR medical OR fitness) when:3d`),
+      search(`(${names}) tennis (injury OR injured OR illness OR withdrawal OR withdrew OR medical OR fitness) when:14d`),
       search(`(${names}) tennis (coach OR coaching) (split OR change OR hire OR appoint OR "part ways") when:45d`),
     ]);
     const statusSignals = statusArticles.map((article) => classifyArticle(article, players, eventName)).filter((signal): signal is NewsSignal => signal !== null);
