@@ -103,21 +103,19 @@ function subtractDays(date: Date, days: number) {
   return new Date(date.getTime() - days * 86_400_000);
 }
 
-async function getJson<T>(url: string, timeoutMs = 6_500): Promise<T> {
+async function getJson<T>(url: string): Promise<T> {
   const response = await fetch(url, {
     headers: { Accept: "application/json", "User-Agent": "curl/8.7.1" },
     cache: "no-store",
-    signal: AbortSignal.timeout(timeoutMs),
   });
   if (!response.ok) throw new Error(`Source returned ${response.status}`);
   return response.json() as Promise<T>;
 }
 
-async function getText(url: string, timeoutMs = 5_000) {
+async function getText(url: string) {
   const response = await fetch(url, {
     headers: { Accept: "application/rss+xml, application/xml, text/xml", "User-Agent": "curl/8.7.1" },
     cache: "no-store",
-    signal: AbortSignal.timeout(timeoutMs),
   });
   if (!response.ok) throw new Error(`Source returned ${response.status}`);
   return response.text();
@@ -128,7 +126,7 @@ async function geocode(location: string) {
   for (const candidate of candidates) {
     const params = new URLSearchParams({ name: candidate, count: "1", language: "en", format: "json" });
     try {
-      const payload = await getJson<GeocodingPayload>(`https://geocoding-api.open-meteo.com/v1/search?${params}`, 4_000);
+      const payload = await getJson<GeocodingPayload>(`https://geocoding-api.open-meteo.com/v1/search?${params}`);
       const result = payload.results?.[0];
       if (result?.latitude !== undefined && result.longitude !== undefined) return result;
     } catch {
