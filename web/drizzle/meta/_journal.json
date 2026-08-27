@@ -29,6 +29,13 @@
       "when": 1787846400000,
       "tag": "0003_refresh_rankings_2026_08_24",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1787848929531,
+      "tag": "0004_void_nonplayed_results",
+      "breakpoints": true
     }
   ]
 }

@@ -34,7 +34,7 @@ test("server-renders the complete forecasting product shell", async () => {
 });
 
 test("ships the scoring model, historical catalogue, bracket engine, live feed, and context layer", async () => {
-  const [model, players, summary, bracket, studio, liveRoute, ledger, contextRoute, contextData, playerDatabase, migration, scorecardMigration, rankingMigration] = await Promise.all([
+  const [model, players, summary, bracket, studio, liveRoute, ledger, contextRoute, contextData, playerDatabase, migration, scorecardMigration, rankingMigration, voidMigration] = await Promise.all([
     readFile(new URL("../lib/model.ts", import.meta.url), "utf8"),
     readFile(new URL("../data/players.generated.ts", import.meta.url), "utf8"),
     readFile(new URL("../data/player-database-summary.generated.ts", import.meta.url), "utf8"),
@@ -48,6 +48,7 @@ test("ships the scoring model, historical catalogue, bracket engine, live feed, 
     readFile(new URL("../drizzle/0000_late_zarek.sql", import.meta.url), "utf8"),
     readFile(new URL("../drizzle/0002_lucky_tinkerer.sql", import.meta.url), "utf8"),
     readFile(new URL("../drizzle/0003_refresh_rankings_2026_08_24.sql", import.meta.url), "utf8"),
+    readFile(new URL("../drizzle/0004_void_nonplayed_results.sql", import.meta.url), "utf8"),
   ]);
   assert.match(model, /function beta\(/);
   assert.match(model, /function simulateGame\(/);
@@ -66,6 +67,7 @@ test("ships the scoring model, historical catalogue, bracket engine, live feed, 
   assert.match(liveRoute, /recordAndGradeLivePredictions/);
   assert.match(ledger, /INSERT OR IGNORE INTO live_predictions/);
   assert.match(ledger, /actual_winner IS NULL/);
+  assert.match(ledger, /voided_at IS NULL/);
   assert.match(ledger, /brier_score/);
   assert.match(contextRoute, /buildMatchContext/);
   assert.match(contextRoute, /applyContextAdjustment/);
@@ -78,4 +80,6 @@ test("ships the scoring model, historical catalogue, bracket engine, live feed, 
   assert.match(migration, /idx_players_tour_era/);
   assert.match(scorecardMigration, /live_predictions/);
   assert.match(rankingMigration, /ranking_points = 12800/);
+  assert.match(voidMigration, /void_reason/);
+  assert.match(voidMigration, /ATP-189-2026:184769/);
 });
