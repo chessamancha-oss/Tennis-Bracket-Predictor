@@ -55,7 +55,8 @@ Every applied factor, source headline, confidence label, and rating/uncertainty 
 
 ## Data
 
-- Official ATP/WTA rankings snapshot: 2026-08-18.
+- Official ATP/WTA featured rankings snapshot: 2026-08-24.
+- Wider historical-catalogue rankings: archive snapshot dated 2026-06-08, with the featured-player overrides above.
 - Historical result and point-stat snapshot: through 2026-05-25.
 - Searchable historical catalogue: 7,255 profiles (3,513 ATP and 3,742 WTA), 1967–2026, minimum five top-level recorded matches.
 - Historical data compiler: Jeff Sackmann / Tennis Abstract.

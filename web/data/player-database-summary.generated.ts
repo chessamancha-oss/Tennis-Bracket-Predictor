@@ -5,5 +5,5 @@ export const playerDatabaseSummary = {
   "wta": 3742,
   "firstYear": 1967,
   "lastYear": 2026,
-  "generatedAt": "2026-08-24"
+  "generatedAt": "2026-08-27"
 } as const;

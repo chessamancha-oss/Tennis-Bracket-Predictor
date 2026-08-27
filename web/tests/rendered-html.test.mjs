@@ -52,7 +52,7 @@ test("ships the scoring model, historical catalogue, bracket engine, live feed, 
   assert.match(model, /function simulateTieBreak\(/);
   assert.match(model, /requestedPosteriorDraws = 36/);
   assert.match(model, /advancedProfile/);
-  assert.equal((players.match(/"rankingSnapshot": "2026-08-18"/g) ?? []).length, 32);
+  assert.equal((players.match(/"rankingSnapshot": "2026-08-24"/g) ?? []).length, 32);
   assert.equal((players.match(/"historyCutoff": "2026-05-25"/g) ?? []).length, 32);
   assert.match(summary, /"count": 7255/);
   assert.match(summary, /"firstYear": 1967/);

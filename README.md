@@ -152,7 +152,7 @@ MODEL_CARD.md                Model behavior, data, risks, evaluation roadmap
 
 ## Data and research attribution
 
-Current ranking snapshots are sourced from the official [ATP rankings](https://www.atptour.com/en/rankings/singles) and [WTA rankings](https://www.wtatennis.com/rankings/singles) pages. Historical aggregates are derived from datasets compiled by Jeff Sackmann / Tennis Abstract and used under CC BY-NC-SA 4.0.
+The featured ATP/WTA ranking snapshot is dated 2026-08-24 and sourced from the official [ATP rankings](https://www.atptour.com/en/rankings/singles) and [WTA rankings](https://www.wtatennis.com/rankings/singles) pages. The wider catalogue retains the archive's 2026-06-08 ranking file with verified featured-player overrides. Historical aggregates are derived from datasets compiled by Jeff Sackmann / Tennis Abstract and used under CC BY-NC-SA 4.0.
 
 The architecture is informed by paired-comparison research showing the value of time dynamics, surface covariates, and explicit uncertainty in tennis forecasting; see [Ingram, *Gaussian Process Priors for Dynamic Paired Comparison Modelling*](https://arxiv.org/abs/1902.07378).
 
