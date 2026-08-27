@@ -47,6 +47,18 @@ interface DatabaseEnv {
   DB?: D1Database;
 }
 
+const OFFICIAL_RANKING_POSITIONS: Record<Tour, ReadonlySet<number>> = {
+  ATP: new Set([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 19, 20, 24, 49]),
+  WTA: new Set([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 20]),
+};
+
+function rankingSnapshotFor(row: PlayerRow) {
+  if (row.rank === null) return null;
+  return OFFICIAL_RANKING_POSITIONS[row.tour].has(row.rank)
+    ? "Official ATP/WTA snapshot 2026-08-24"
+    : "Archive snapshot 2026-06-08";
+}
+
 export function normalizePlayerName(value: string) {
   return value.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 }
@@ -113,7 +125,7 @@ function rowToProfile(row: PlayerRow): CataloguePlayer {
     returnSample: row.return_sample,
     surfaceSamples: { hard: row.hard_matches, clay: row.clay_matches, grass: row.grass_matches },
     lastMatchDate: row.last_match_date,
-    rankingSnapshot: row.rank ? "2026 archive snapshot" : null,
+    rankingSnapshot: rankingSnapshotFor(row),
     historyCutoff: row.last_match_date,
     careerStart: row.career_start,
     careerEnd: row.career_end,
