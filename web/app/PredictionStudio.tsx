@@ -559,6 +559,7 @@ interface LiveTournament {
     graded: number;
     correct: number;
     wrong: number;
+    voided: number;
     accuracy: number | null;
     averageConfidence: number | null;
     brierScore: number | null;
@@ -686,13 +687,13 @@ function LiveTourDesk() {
 }
 
 function TournamentAccuracyScorecard({ tournament, available }: { tournament: LiveTournament; available: boolean }) {
-  const score = tournament.accuracy ?? { captured: 0, pending: 0, graded: 0, correct: 0, wrong: 0, accuracy: null, averageConfidence: null, brierScore: null, trackingSince: null, lastGradedAt: null };
+  const score = tournament.accuracy ?? { captured: 0, pending: 0, graded: 0, correct: 0, wrong: 0, voided: 0, accuracy: null, averageConfidence: null, brierScore: null, trackingSince: null, lastGradedAt: null };
   const graded = score.graded > 0;
   return <section className="accuracy-scorecard" aria-label={`${tournament.name} prediction accuracy`}>
     <header><div><span>FORWARD-TEST SCORECARD</span><strong>{!available ? "Reconnecting" : graded ? percent(score.accuracy ?? 0, 1) : "Collecting"}</strong><small>{!available ? "persistent scorecard temporarily unavailable" : graded ? `${score.graded} graded winner picks` : "waiting for frozen picks to finish"}</small></div><div className="accuracy-ring" style={{ "--accuracy": `${Math.round((score.accuracy ?? 0) * 100)}%` } as CSSProperties}><b>{graded ? percent(score.accuracy ?? 0) : "—"}</b></div></header>
     <div className="accuracy-counts"><div><span>Correct</span><strong>{score.correct}</strong></div><div><span>Wrong</span><strong>{score.wrong}</strong></div><div><span>Graded</span><strong>{score.graded}</strong></div><div><span>Still open</span><strong>{score.pending}</strong></div></div>
     {graded ? <div className="accuracy-quality"><div><span>Average confidence</span><strong>{percent(score.averageConfidence ?? 0, 1)}</strong></div><div><span>Brier score</span><strong>{(score.brierScore ?? 0).toFixed(3)}</strong><small>lower is better</small></div></div> : null}
-    <footer><p>Only the first baseline pick captured before a match begins is eligible. Completed matches from before tracking started are never backfilled.</p><small>{score.trackingSince ? `Tracking since ${new Date(score.trackingSince).toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" })}` : "The first eligible pre-match forecast starts the record."}</small></footer>
+    <footer><p>Only the first baseline pick captured before a match begins is eligible. Completed matches from before tracking started are never backfilled. Walkovers and other unplayed outcomes are voided and excluded.</p><small>{score.trackingSince ? `Tracking since ${new Date(score.trackingSince).toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" })}${score.voided ? ` · ${score.voided} void` : ""}` : "The first eligible pre-match forecast starts the record."}</small></footer>
   </section>;
 }
 

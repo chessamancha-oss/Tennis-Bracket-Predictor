@@ -1,5 +1,5 @@
 import { env } from "cloudflare:workers";
-import { LIVE_MODEL_VERSION, captureCandidates, resultCandidates, type LedgerTournament, type TournamentAccuracy } from "./prediction-ledger-core";
+import { LIVE_MODEL_VERSION, captureCandidates, resultCandidates, voidCandidates, type LedgerTournament, type TournamentAccuracy } from "./prediction-ledger-core";
 
 export { emptyTournamentAccuracy } from "./prediction-ledger-core";
 
@@ -9,6 +9,7 @@ interface AccuracyRow {
   pending: number;
   graded: number;
   correct: number;
+  voided: number;
   average_confidence: number | null;
   brier_score: number | null;
   tracking_since: string | null;
@@ -63,24 +64,37 @@ export async function recordAndGradeLivePredictions(tournaments: LedgerTournamen
       SET actual_winner = ?,
           correct = CASE WHEN predicted_winner = ? THEN 1 ELSE 0 END,
           resolved_at = ?
-      WHERE id = ? AND actual_winner IS NULL
+      WHERE id = ? AND actual_winner IS NULL AND voided_at IS NULL
     `).bind(result.actualWinner, result.actualWinner, result.resolvedAt, result.id)));
+  }
+
+  for (const group of chunks(voidCandidates(tournaments, observedAt))) {
+    await db.batch(group.map((result) => db.prepare(`
+      UPDATE live_predictions
+      SET voided_at = ?,
+          void_reason = ?,
+          actual_winner = NULL,
+          correct = NULL,
+          resolved_at = NULL
+      WHERE id = ?
+    `).bind(result.voidedAt, result.reason, result.id)));
   }
 
   const tournamentIds = [...new Set(tournaments.map((tournament) => tournament.id))];
   const placeholders = tournamentIds.map(() => "?").join(", ");
   const rows = await db.prepare(`
     SELECT tournament_id,
-           COUNT(*) AS captured,
-           SUM(CASE WHEN actual_winner IS NULL THEN 1 ELSE 0 END) AS pending,
-           SUM(CASE WHEN actual_winner IS NOT NULL THEN 1 ELSE 0 END) AS graded,
-           SUM(CASE WHEN correct = 1 THEN 1 ELSE 0 END) AS correct,
-           AVG(CASE WHEN actual_winner IS NOT NULL THEN predicted_probability END) AS average_confidence,
-           AVG(CASE WHEN actual_winner IS NOT NULL THEN
+           SUM(CASE WHEN voided_at IS NULL THEN 1 ELSE 0 END) AS captured,
+           SUM(CASE WHEN voided_at IS NULL AND actual_winner IS NULL THEN 1 ELSE 0 END) AS pending,
+           SUM(CASE WHEN voided_at IS NULL AND actual_winner IS NOT NULL THEN 1 ELSE 0 END) AS graded,
+           SUM(CASE WHEN voided_at IS NULL AND correct = 1 THEN 1 ELSE 0 END) AS correct,
+           SUM(CASE WHEN voided_at IS NOT NULL THEN 1 ELSE 0 END) AS voided,
+           AVG(CASE WHEN voided_at IS NULL AND actual_winner IS NOT NULL THEN predicted_probability END) AS average_confidence,
+           AVG(CASE WHEN voided_at IS NULL AND actual_winner IS NOT NULL THEN
              (predicted_probability - correct) * (predicted_probability - correct)
            END) AS brier_score,
-           MIN(predicted_at) AS tracking_since,
-           MAX(resolved_at) AS last_graded_at
+           MIN(CASE WHEN voided_at IS NULL THEN predicted_at END) AS tracking_since,
+           MAX(CASE WHEN voided_at IS NULL THEN resolved_at END) AS last_graded_at
     FROM live_predictions
     WHERE tournament_id IN (${placeholders})
     GROUP BY tournament_id
@@ -95,6 +109,7 @@ export async function recordAndGradeLivePredictions(tournaments: LedgerTournamen
       graded,
       correct,
       wrong: Math.max(0, graded - correct),
+      voided: Number(row.voided ?? 0),
       accuracy: graded ? correct / graded : null,
       averageConfidence: graded ? Number(row.average_confidence) : null,
       brierScore: graded ? Number(row.brier_score) : null,

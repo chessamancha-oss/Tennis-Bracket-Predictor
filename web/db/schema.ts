@@ -55,6 +55,8 @@ export const livePredictions = sqliteTable("live_predictions", {
   actualWinner: text("actual_winner"),
   correct: integer("correct"),
   resolvedAt: text("resolved_at"),
+  voidedAt: text("voided_at"),
+  voidReason: text("void_reason"),
 }, (table) => [
   index("idx_live_predictions_tournament").on(table.tournamentId, table.predictedAt),
 ]);

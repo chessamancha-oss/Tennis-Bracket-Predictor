@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { captureCandidates, emptyTournamentAccuracy, resultCandidates, type LedgerTournament } from "../lib/prediction-ledger-core";
+import { captureCandidates, emptyTournamentAccuracy, resultCandidates, voidCandidates, type LedgerTournament } from "../lib/prediction-ledger-core";
 
 const observedAt = "2026-08-25T16:00:00.000Z";
 
@@ -15,6 +15,7 @@ test("captures only eligible pre-match forecasts and freezes winner probability"
       round: "Round 1",
       startsAt: "2026-08-25T18:00:00.000Z",
       state: "pre",
+      status: "Scheduled",
       players: [{ name: "Player One", winner: false }, { name: "Player Two", winner: false }],
       forecast: { winner: "Player Two", firstProbability: 0.36 },
     },
@@ -23,6 +24,7 @@ test("captures only eligible pre-match forecasts and freezes winner probability"
       round: "Round 1",
       startsAt: "2026-08-25T14:00:00.000Z",
       state: "post",
+      status: "Final",
       players: [{ name: "Past Winner", winner: true }, { name: "Past Loser", winner: false }],
       forecast: null,
     },
@@ -31,8 +33,18 @@ test("captures only eligible pre-match forecasts and freezes winner probability"
       round: "Round 2",
       startsAt: null,
       state: "pre",
+      status: "Scheduled",
       players: [{ name: "TBD", winner: false }, { name: "Player Three", winner: false }],
       forecast: null,
+    },
+    {
+      id: "cancelled-before-start",
+      round: "Round 1",
+      startsAt: "2026-08-25T19:00:00.000Z",
+      state: "pre",
+      status: "Cancelled",
+      players: [{ name: "Player Four", winner: false }, { name: "Player Five", winner: false }],
+      forecast: { winner: "Player Four", firstProbability: 0.55 },
     },
   ])], observedAt);
 
@@ -50,6 +62,7 @@ test("grades final winners without manufacturing predictions for completed match
       round: "Round 1",
       startsAt: "2026-08-25T14:00:00.000Z",
       state: "post",
+      status: "Final",
       players: [{ name: "Actual Winner", winner: true }, { name: "Actual Loser", winner: false }],
       forecast: null,
     },
@@ -58,12 +71,34 @@ test("grades final winners without manufacturing predictions for completed match
       round: "Round 1",
       startsAt: "2026-08-25T15:30:00.000Z",
       state: "in",
+      status: "In Progress",
       players: [{ name: "Player One", winner: false }, { name: "Player Two", winner: false }],
       forecast: null,
     },
   ])], observedAt);
 
   assert.deepEqual(results, [{ id: "ATP-189-2026:final", actualWinner: "Actual Winner", resolvedAt: observedAt }]);
+});
+
+test("voids walkovers instead of grading them as winner predictions", () => {
+  const tournaments = [event([
+    {
+      id: "walkover",
+      round: "Qualifying Final",
+      startsAt: "2026-08-25T16:30:00.000Z",
+      state: "post",
+      status: "Walkover",
+      players: [{ name: "Official Advancer", winner: true }, { name: "Withdrawn Player", winner: false }],
+      forecast: null,
+    },
+  ])];
+
+  assert.deepEqual(resultCandidates(tournaments, observedAt), []);
+  assert.deepEqual(voidCandidates(tournaments, observedAt), [{
+    id: "ATP-189-2026:walkover",
+    reason: "Walkover",
+    voidedAt: observedAt,
+  }]);
 });
 
 test("empty scorecards expose accuracy and calibration metrics without inventing values", () => {
@@ -73,6 +108,7 @@ test("empty scorecards expose accuracy and calibration metrics without inventing
     graded: 0,
     correct: 0,
     wrong: 0,
+    voided: 0,
     accuracy: null,
     averageConfidence: null,
     brierScore: null,
