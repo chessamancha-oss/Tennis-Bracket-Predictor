@@ -19,6 +19,8 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 
+from ranking_snapshot import DATABASE_RANKING_OVERRIDES
+
 SURFACES = ("Hard", "Clay", "Grass")
 
 
@@ -247,6 +249,19 @@ def build_tour(folder: Path, tour: str) -> list[Player]:
     for source_id, player in players.items():
         if source_id in rankings and player.last_year >= 2025:
             player.rank, player.ranking_points = rankings[source_id]
+
+    official = {
+        normalized(source_name): (rank, points)
+        for _, source_name, rank, points in DATABASE_RANKING_OVERRIDES[tour]
+    }
+    refreshed_positions = {rank for rank, _ in official.values()}
+    for player in players.values():
+        if player.rank in refreshed_positions:
+            player.rank = None
+            player.ranking_points = None
+        override = official.get(normalized(player.name))
+        if override is not None:
+            player.rank, player.ranking_points = override
     return [
         player for player in players.values() if player.matches >= 5 and player.name
     ]
